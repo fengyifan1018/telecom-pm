@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
 import { startTask, submitTask, approveTask, rejectTask, assignTask, updateTask, getComments, addComment, getTransitions, listUsers, listAttachments, uploadAttachment, deleteAttachment, getAttachmentDownloadUrl, listEscalations, createEscalation, resolveEscalation } from '../api/tasks'
 import http from '../api/index'
 import { STATUS_MAP, PHASE_MAP, ROLE_MAP } from '../utils/constants'
@@ -13,6 +13,13 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'refresh'])
 
 const auth = useAuthStore()
+
+const windowWidth = ref(window.innerWidth)
+const onResize = () => { windowWidth.value = window.innerWidth }
+onMounted(() => window.addEventListener('resize', onResize))
+onBeforeUnmount(() => window.removeEventListener('resize', onResize))
+const isMobile = computed(() => windowWidth.value < 768)
+
 const canStart = computed(() => {
   if (!props.task) return false
   const role = auth.user?.role
@@ -256,13 +263,23 @@ async function handleResolveEscalation(esc) {
   }
 }
 
+const cameraInput = ref(null)
+function triggerCamera() {
+  cameraInput.value?.click()
+}
+async function handleCameraChange(e) {
+  const file = e.target.files?.[0]
+  if (file) await handleUpload(file)
+  e.target.value = ''
+}
+
 function close() {
   emit('update:visible', false)
 }
 </script>
 
 <template>
-  <el-drawer :model-value="visible" @update:model-value="close" size="550px" :title="task?.title">
+  <el-drawer :model-value="visible" @update:model-value="close" :size="isMobile ? '100%' : '550px'" :title="task?.title">
     <template v-if="task">
       <div style="margin-bottom: 16px">
         <el-descriptions :column="2" border size="small">
@@ -333,7 +350,7 @@ function close() {
 
       <!-- Attachments -->
       <el-divider content-position="left">附件 ({{ attachments.length }})</el-divider>
-      <div style="margin-bottom: 12px">
+      <div style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap">
         <el-upload
           :auto-upload="false"
           :show-file-list="false"
@@ -342,6 +359,18 @@ function close() {
         >
           <el-button size="small" type="primary" :loading="uploadLoading">上传文件</el-button>
         </el-upload>
+        <!-- 拍照上传（移动端） -->
+        <el-button v-if="isMobile" size="small" type="success" :loading="uploadLoading" @click="triggerCamera">
+          📷 拍照上传
+        </el-button>
+        <input
+          ref="cameraInput"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          style="display: none"
+          @change="handleCameraChange"
+        />
       </div>
       <div v-if="attachments.length === 0" style="color: #909399; font-size: 13px; margin-bottom: 12px">暂无附件</div>
       <div v-for="att in attachments" :key="att.id" class="attachment-item">

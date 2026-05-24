@@ -47,8 +47,8 @@ function isOverdue(task) {
   <div v-loading="loading">
     <h3 style="margin-top: 0">工作台</h3>
 
-    <el-row :gutter="16" style="margin-bottom: 24px">
-      <el-col :span="6">
+    <el-row :gutter="12" style="margin-bottom: 16px">
+      <el-col :xs="12" :span="6">
         <el-card shadow="hover">
           <div class="stat-card">
             <div class="stat-number" style="color: #409eff">{{ stats.active }}</div>
@@ -56,7 +56,7 @@ function isOverdue(task) {
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :span="6">
         <el-card shadow="hover">
           <div class="stat-card">
             <div class="stat-number" style="color: #e6a23c">{{ stats.review }}</div>
@@ -64,7 +64,7 @@ function isOverdue(task) {
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :span="6" style="margin-top: 0">
         <el-card shadow="hover">
           <div class="stat-card">
             <div class="stat-number" style="color: #67c23a">{{ stats.done }}</div>
@@ -72,7 +72,7 @@ function isOverdue(task) {
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :span="6">
         <el-card shadow="hover" style="cursor: pointer" @click="activeTab = 'overdue'">
           <div class="stat-card">
             <div class="stat-number" style="color: #f56c6c">{{ stats.overdue }}</div>
@@ -86,7 +86,7 @@ function isOverdue(task) {
       <el-tabs v-model="activeTab">
         <el-tab-pane :label="`进行中 (${myTasks.length})`" name="active">
           <el-table :data="myTasks" style="width: 100%" @row-click="goProject" highlight-current-row size="small">
-            <el-table-column prop="task_no" label="编号" width="160" />
+            <el-table-column prop="task_no" label="编号" width="160" class-name="col-task-no" />
             <el-table-column prop="title" label="任务" min-width="180" />
             <el-table-column label="阶段" width="100">
               <template #default="{ row }">{{ PHASE_MAP[row.phase] || row.phase }}</template>
@@ -103,7 +103,7 @@ function isOverdue(task) {
         </el-tab-pane>
         <el-tab-pane :label="`待审核 (${reviewTasks.length})`" name="review">
           <el-table :data="reviewTasks" style="width: 100%" @row-click="goProject" highlight-current-row size="small">
-            <el-table-column prop="task_no" label="编号" width="160" />
+            <el-table-column prop="task_no" label="编号" width="160" class-name="col-task-no" />
             <el-table-column prop="title" label="任务" min-width="180" />
             <el-table-column label="阶段" width="100">
               <template #default="{ row }">{{ PHASE_MAP[row.phase] || row.phase }}</template>
@@ -119,7 +119,7 @@ function isOverdue(task) {
             </span>
           </template>
           <el-table :data="overdueTasks" style="width: 100%" @row-click="goProject" highlight-current-row size="small">
-            <el-table-column prop="task_no" label="编号" width="160" />
+            <el-table-column prop="task_no" label="编号" width="160" class-name="col-task-no" />
             <el-table-column prop="title" label="任务" min-width="180" />
             <el-table-column label="阶段" width="100">
               <template #default="{ row }">{{ PHASE_MAP[row.phase] || row.phase }}</template>
@@ -149,4 +149,11 @@ function isOverdue(task) {
 .stat-card { text-align: center; padding: 8px 0; }
 .stat-number { font-size: 32px; font-weight: bold; }
 .stat-label { font-size: 14px; color: #909399; margin-top: 4px; }
+
+@media (max-width: 767px) {
+  .stat-number { font-size: 24px; }
+  .el-row { row-gap: 10px; }
+  /* hide task_no column on mobile */
+  :deep(.col-task-no) { display: none; }
+}
 </style>
