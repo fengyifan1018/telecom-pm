@@ -78,6 +78,23 @@ async def change_password(
     return {"detail": "密码修改成功"}
 
 
+@router.delete("/{user_id}", status_code=204)
+async def delete_user(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("user.manage")),
+):
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="不能删除自己")
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    await log_action(db, current_user.id, current_user.display_name, "delete",
+                     "user", user_id, user.display_name)
+    await db.delete(user)
+    await db.commit()
+
+
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_user(
     user_id: int,

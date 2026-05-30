@@ -73,6 +73,16 @@ async function handleSubmit() {
   }
 }
 
+async function deleteUser(user) {
+  try {
+    await http.delete(`/users/${user.id}`)
+    ElMessage.success('已删除')
+    await fetchUsers()
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '删除失败')
+  }
+}
+
 async function toggleActive(user) {
   try {
     await http.put(`/users/${user.id}`, { is_active: !user.is_active })
@@ -113,6 +123,11 @@ onMounted(fetchUsers)
           <el-button size="small" text :type="row.is_active ? 'danger' : 'success'" @click="toggleActive(row)">
             {{ row.is_active ? '禁用' : '启用' }}
           </el-button>
+          <el-popconfirm title="确认删除该用户？" @confirm="deleteUser(row)">
+            <template #reference>
+              <el-button size="small" text type="danger">删除</el-button>
+            </template>
+          </el-popconfirm>
         </template>
       </el-table-column>
     </el-table>
