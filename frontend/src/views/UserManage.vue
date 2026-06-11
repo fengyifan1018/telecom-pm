@@ -117,7 +117,7 @@ onMounted(fetchUsers)
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="160">
+      <el-table-column label="操作" width="200">
         <template #default="{ row }">
           <el-button size="small" text type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button size="small" text :type="row.is_active ? 'danger' : 'success'" @click="toggleActive(row)">
