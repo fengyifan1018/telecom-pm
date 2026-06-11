@@ -1,4 +1,5 @@
 <script setup>
+import PageHeader from '../components/PageHeader.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { listTasks, startTask, submitTask, approveTask } from '../api/tasks'
@@ -128,17 +129,14 @@ async function onDrop(event, colKey) {
 
 <template>
   <div v-loading="loading">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
-      <h3 style="margin: 0">任务看板</h3>
-      <div style="display: flex; gap: 8px">
-        <el-select v-model="filterProject" placeholder="筛选项目" clearable style="width: 180px" filterable>
-          <el-option v-for="p in projects" :key="p.id" :label="p.name" :value="p.id" />
-        </el-select>
-        <el-select v-model="filterPhase" placeholder="筛选阶段" clearable style="width: 140px">
-          <el-option v-for="p in availablePhases" :key="p.key" :label="p.label" :value="p.key" />
-        </el-select>
-      </div>
-    </div>
+    <PageHeader title="任务看板">
+      <el-select v-model="filterProject" placeholder="筛选项目" clearable style="width: 180px" filterable>
+        <el-option v-for="p in projects" :key="p.id" :label="p.name" :value="p.id" />
+      </el-select>
+      <el-select v-model="filterPhase" placeholder="筛选阶段" clearable style="width: 140px">
+        <el-option v-for="p in availablePhases" :key="p.key" :label="p.label" :value="p.key" />
+      </el-select>
+    </PageHeader>
 
     <div class="kanban-board">
       <div

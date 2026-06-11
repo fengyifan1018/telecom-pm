@@ -1,4 +1,5 @@
 <script setup>
+import PageHeader from '../components/PageHeader.vue'
 import { ref, onMounted } from 'vue'
 import { getPermissions, updatePermission, resetPermissions } from '../api/permissions'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -56,10 +57,9 @@ async function handleReset() {
 
 <template>
   <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
-      <h2 style="margin: 0">权限管理</h2>
+    <PageHeader title="权限管理">
       <el-button type="warning" plain @click="handleReset">重置为默认</el-button>
-    </div>
+    </PageHeader>
 
     <el-card v-loading="loading">
       <div style="font-size: 13px; color: #909399; margin-bottom: 16px">

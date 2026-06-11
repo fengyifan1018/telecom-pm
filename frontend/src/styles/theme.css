@@ -1,0 +1,14 @@
+/* 全局品牌主题：统一主色为 #1890FF（设计文档 05§配色） */
+:root {
+  --el-color-primary: #1890ff;
+  --el-color-primary-light-3: #5db1ff;
+  --el-color-primary-light-5: #8cc8ff;
+  --el-color-primary-light-7: #badeff;
+  --el-color-primary-light-8: #d1e9ff;
+  --el-color-primary-light-9: #e8f4ff;
+  --el-color-primary-dark-2: #1373cc;
+
+  /* 品牌色变量，供自定义组件复用 */
+  --brand-primary: #1890ff;
+  --brand-sidebar-bg: #001529;
+}

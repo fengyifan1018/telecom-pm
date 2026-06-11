@@ -4,11 +4,31 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { ROLE_MAP } from '../utils/constants'
 import { ElMessage } from 'element-plus'
+import {
+  HomeFilled, Folder, Grid, Histogram, Document,
+  OfficeBuilding, User, UserFilled, Lock, Tickets,
+} from '@element-plus/icons-vue'
 import { getNotifications, getUnreadCount, markNotificationRead, markAllRead } from '../api/tasks'
 import http from '../api/index'
 
 const router = useRouter()
 const auth = useAuthStore()
+
+const menus = [
+  { path: '/', label: '工作台', icon: HomeFilled },
+  { path: '/projects', label: '项目管理', icon: Folder },
+  { path: '/kanban', label: '任务看板', icon: Grid },
+  { path: '/reports', label: '报表中心', icon: Histogram, perm: 'menu.reports' },
+  { path: '/templates', label: '模板管理', icon: Document, perm: 'menu.templates' },
+  { path: '/customers', label: '客户管理', icon: OfficeBuilding, perm: 'menu.customers' },
+  { path: '/users', label: '用户管理', icon: User, perm: 'menu.users' },
+  { path: '/groups', label: '用户组管理', icon: UserFilled, perm: 'menu.groups' },
+  { path: '/permissions', label: '权限管理', icon: Lock, perm: 'menu.permissions' },
+  { path: '/audit', label: '操作审计', icon: Tickets, adminOnly: true },
+]
+const visibleMenus = computed(() =>
+  menus.filter((m) => (m.adminOnly ? isAdmin.value : m.perm ? can(m.perm) : true)),
+)
 
 const unreadCount = ref(0)
 const notifications = ref([])
@@ -111,16 +131,10 @@ onMounted(() => {
         active-text-color="#fff"
         router
       >
-        <el-menu-item index="/"><span>工作台</span></el-menu-item>
-        <el-menu-item index="/projects"><span>项目管理</span></el-menu-item>
-        <el-menu-item index="/kanban"><span>任务看板</span></el-menu-item>
-        <el-menu-item v-if="can('menu.reports')" index="/reports"><span>报表中心</span></el-menu-item>
-        <el-menu-item v-if="can('menu.templates')" index="/templates"><span>模板管理</span></el-menu-item>
-        <el-menu-item v-if="can('menu.customers')" index="/customers"><span>客户管理</span></el-menu-item>
-        <el-menu-item v-if="can('menu.users')" index="/users"><span>用户管理</span></el-menu-item>
-        <el-menu-item v-if="can('menu.groups')" index="/groups"><span>用户组管理</span></el-menu-item>
-        <el-menu-item v-if="can('menu.permissions')" index="/permissions"><span>权限管理</span></el-menu-item>
-        <el-menu-item v-if="isAdmin" index="/audit"><span>操作审计</span></el-menu-item>
+        <el-menu-item v-for="m in visibleMenus" :key="m.path" :index="m.path">
+          <el-icon><component :is="m.icon" /></el-icon>
+          <span>{{ m.label }}</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
 
@@ -174,16 +188,10 @@ onMounted(() => {
           router
           @select="showMobileNav = false"
         >
-          <el-menu-item index="/"><span>工作台</span></el-menu-item>
-          <el-menu-item index="/projects"><span>项目管理</span></el-menu-item>
-          <el-menu-item index="/kanban"><span>任务看板</span></el-menu-item>
-          <el-menu-item v-if="can('menu.reports')" index="/reports"><span>报表中心</span></el-menu-item>
-          <el-menu-item v-if="can('menu.templates')" index="/templates"><span>模板管理</span></el-menu-item>
-          <el-menu-item v-if="can('menu.customers')" index="/customers"><span>客户管理</span></el-menu-item>
-          <el-menu-item v-if="can('menu.users')" index="/users"><span>用户管理</span></el-menu-item>
-          <el-menu-item v-if="can('menu.groups')" index="/groups"><span>用户组管理</span></el-menu-item>
-          <el-menu-item v-if="can('menu.permissions')" index="/permissions"><span>权限管理</span></el-menu-item>
-          <el-menu-item v-if="isAdmin" index="/audit"><span>操作审计</span></el-menu-item>
+          <el-menu-item v-for="m in visibleMenus" :key="m.path" :index="m.path">
+            <el-icon><component :is="m.icon" /></el-icon>
+            <span>{{ m.label }}</span>
+          </el-menu-item>
         </el-menu>
         <div style="padding:16px;border-top:1px solid #ffffff1a;margin-top:12px">
           <div style="color:#ffffffa6;font-size:13px">{{ auth.user?.display_name }}</div>

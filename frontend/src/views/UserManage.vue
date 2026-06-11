@@ -4,6 +4,7 @@ import { listUsers } from '../api/tasks'
 import { ROLE_MAP } from '../utils/constants'
 import { ElMessage } from 'element-plus'
 import http from '../api/index'
+import PageHeader from '../components/PageHeader.vue'
 
 const users = ref([])
 const loading = ref(false)
@@ -98,10 +99,9 @@ onMounted(fetchUsers)
 
 <template>
   <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
-      <h2 style="margin: 0">用户管理</h2>
+    <PageHeader title="用户管理">
       <el-button type="primary" @click="openCreate">新增用户</el-button>
-    </div>
+    </PageHeader>
 
     <el-table :data="users" v-loading="loading" border stripe>
       <el-table-column prop="id" label="ID" width="60" />

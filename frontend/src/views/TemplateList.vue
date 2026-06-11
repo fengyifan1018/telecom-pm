@@ -1,4 +1,5 @@
 <script setup>
+import PageHeader from '../components/PageHeader.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { PRODUCT_TYPE_MAP, PHASE_MAP } from '../utils/constants'
@@ -172,10 +173,9 @@ async function toggleActive(t) {
 
 <template>
   <div v-loading="loading">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
-      <h3 style="margin: 0">流程模板管理</h3>
+    <PageHeader title="流程模板管理">
       <el-button v-if="isAdmin" type="primary" @click="openCreate">新建模板</el-button>
-    </div>
+    </PageHeader>
 
     <el-row :gutter="16">
       <el-col :span="24" v-for="t in templates" :key="t.id" style="margin-bottom: 16px">

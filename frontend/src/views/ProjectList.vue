@@ -1,4 +1,5 @@
 <script setup>
+import PageHeader from '../components/PageHeader.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { listProjects, createProject, listCustomers, deleteProject } from '../api/projects'
@@ -102,10 +103,9 @@ async function handleDelete(row, e) {
 
 <template>
   <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
-      <h3 style="margin: 0">项目管理</h3>
+    <PageHeader title="项目管理">
       <el-button type="primary" @click="showCreate = true">新建项目</el-button>
-    </div>
+    </PageHeader>
 
     <el-card>
       <div style="display: flex; gap: 12px; margin-bottom: 16px">

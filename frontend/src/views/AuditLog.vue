@@ -1,4 +1,5 @@
 <script setup>
+import PageHeader from '../components/PageHeader.vue'
 import { ref, onMounted } from 'vue'
 import { getAuditLogs } from '../api/audit'
 
@@ -98,9 +99,7 @@ onMounted(fetchLogs)
 
 <template>
   <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
-      <h2 style="margin: 0">操作审计日志</h2>
-    </div>
+    <PageHeader title="操作审计日志" />
 
     <el-card>
       <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap">

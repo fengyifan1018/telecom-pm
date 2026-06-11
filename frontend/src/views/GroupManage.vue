@@ -1,4 +1,5 @@
 <script setup>
+import PageHeader from '../components/PageHeader.vue'
 import { ref, onMounted } from 'vue'
 import { listGroups, createGroup, updateGroup, deleteGroup, listGroupMembers, addGroupMember, removeGroupMember } from '../api/groups'
 import { listUsers } from '../api/tasks'
@@ -134,10 +135,9 @@ function availableUsers(groupId) {
 
 <template>
   <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
-      <h2 style="margin: 0">用户组管理</h2>
+    <PageHeader title="用户组管理">
       <el-button type="primary" @click="openCreate">新建用户组</el-button>
-    </div>
+    </PageHeader>
 
     <el-table :data="groups" v-loading="loading" border stripe row-key="id">
       <el-table-column prop="id" label="ID" width="60" />

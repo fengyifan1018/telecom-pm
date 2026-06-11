@@ -1,4 +1,5 @@
 <script setup>
+import PageHeader from '../components/PageHeader.vue'
 import { ref, onMounted, computed } from 'vue'
 import { listCustomers, createCustomer, updateCustomer, deleteCustomer } from '../api/projects'
 import { useAuthStore } from '../stores/auth'
@@ -94,10 +95,9 @@ async function handleDelete(row) {
 
 <template>
   <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
-      <h2 style="margin: 0">客户管理</h2>
+    <PageHeader title="客户管理">
       <el-button v-if="canEdit" type="primary" @click="openCreate">新增客户</el-button>
-    </div>
+    </PageHeader>
 
     <el-card>
       <div style="margin-bottom: 14px">

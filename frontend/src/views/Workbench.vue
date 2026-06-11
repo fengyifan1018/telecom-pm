@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { getDashboard, listTasks } from '../api/tasks'
 import { STATUS_MAP, PHASE_MAP } from '../utils/constants'
+import PageHeader from '../components/PageHeader.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -45,7 +46,7 @@ function isOverdue(task) {
 
 <template>
   <div v-loading="loading">
-    <h3 style="margin-top: 0">工作台</h3>
+    <PageHeader title="工作台" />
 
     <el-row :gutter="12" style="margin-bottom: 16px">
       <el-col :xs="12" :span="6">

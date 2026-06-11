@@ -1,4 +1,5 @@
 <script setup>
+import PageHeader from '../components/PageHeader.vue'
 import { ref, computed, onMounted } from 'vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -144,7 +145,7 @@ const workloadBarOption = computed(() => ({
 
 <template>
   <div v-loading="loading">
-    <h3 style="margin-top: 0">报表中心</h3>
+    <PageHeader title="报表中心" />
 
     <!-- Overview Cards -->
     <el-row :gutter="16" style="margin-bottom: 24px" v-if="overview">
