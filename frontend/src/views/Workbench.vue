@@ -1,10 +1,11 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { getDashboard, listTasks } from '../api/tasks'
 import { STATUS_MAP, PHASE_MAP } from '../utils/constants'
 import PageHeader from '../components/PageHeader.vue'
+import EmptyState from '../components/EmptyState.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -12,22 +13,32 @@ const today = new Date().toISOString().slice(0, 10)
 const stats = ref({ pending: 0, active: 0, review: 0, done: 0, overdue: 0 })
 const myTasks = ref([])
 const reviewTasks = ref([])
+const doneTasks = ref([])
 const overdueTasks = ref([])
 const loading = ref(true)
 const activeTab = ref('active')
 
+const statCards = computed(() => [
+  { key: 'active', label: '进行中', value: stats.value.active, color: '#1890ff' },
+  { key: 'review', label: '待审核', value: stats.value.review, color: '#e6a23c' },
+  { key: 'done', label: '已完成', value: stats.value.done, color: '#67c23a' },
+  { key: 'overdue', label: '超期', value: stats.value.overdue, color: '#f56c6c' },
+])
+
 onMounted(async () => {
   try {
-    const [dashRes, taskRes, reviewRes, activeRes, reviewRes2] = await Promise.all([
+    const [dashRes, taskRes, reviewRes, doneRes, activeRes, reviewRes2] = await Promise.all([
       getDashboard(),
       listTasks({ assignee_id: auth.user?.id, status: 'active', page_size: 20 }),
       listTasks({ assignee_id: auth.user?.id, status: 'review', page_size: 20 }),
+      listTasks({ assignee_id: auth.user?.id, status: 'done', page_size: 20 }),
       listTasks({ assignee_id: auth.user?.id, status: 'active', page_size: 100 }),
       listTasks({ assignee_id: auth.user?.id, status: 'review', page_size: 100 }),
     ])
     stats.value = dashRes.data
     myTasks.value = taskRes.data.items
     reviewTasks.value = reviewRes.data.items
+    doneTasks.value = doneRes.data.items
     const allMyTasks = [...activeRes.data.items, ...reviewRes2.data.items]
     overdueTasks.value = allMyTasks.filter(t => t.planned_end && t.planned_end < today)
   } finally {
@@ -49,35 +60,16 @@ function isOverdue(task) {
     <PageHeader title="工作台" />
 
     <el-row :gutter="12" style="margin-bottom: 16px">
-      <el-col :xs="12" :span="6">
-        <el-card shadow="hover">
+      <el-col v-for="c in statCards" :key="c.key" :xs="12" :span="6">
+        <el-card
+          shadow="hover"
+          class="stat-card-clickable"
+          :style="activeTab === c.key ? { borderColor: c.color, boxShadow: `0 2px 12px ${c.color}40` } : {}"
+          @click="activeTab = c.key"
+        >
           <div class="stat-card">
-            <div class="stat-number" style="color: #409eff">{{ stats.active }}</div>
-            <div class="stat-label">进行中</div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :span="6">
-        <el-card shadow="hover">
-          <div class="stat-card">
-            <div class="stat-number" style="color: #e6a23c">{{ stats.review }}</div>
-            <div class="stat-label">待审核</div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :span="6" style="margin-top: 0">
-        <el-card shadow="hover">
-          <div class="stat-card">
-            <div class="stat-number" style="color: #67c23a">{{ stats.done }}</div>
-            <div class="stat-label">已完成</div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :span="6">
-        <el-card shadow="hover" style="cursor: pointer" @click="activeTab = 'overdue'">
-          <div class="stat-card">
-            <div class="stat-number" style="color: #f56c6c">{{ stats.overdue }}</div>
-            <div class="stat-label">超期</div>
+            <div class="stat-number" :style="{ color: c.color }">{{ c.value }}</div>
+            <div class="stat-label">{{ c.label }}</div>
           </div>
         </el-card>
       </el-col>
@@ -100,7 +92,7 @@ function isOverdue(task) {
               </template>
             </el-table-column>
           </el-table>
-          <el-empty v-if="myTasks.length === 0" description="暂无进行中的任务" :image-size="60" />
+          <EmptyState v-if="myTasks.length === 0" text="暂无进行中的任务" />
         </el-tab-pane>
         <el-tab-pane :label="`待审核 (${reviewTasks.length})`" name="review">
           <el-table :data="reviewTasks" style="width: 100%" @row-click="goProject" highlight-current-row size="small">
@@ -111,7 +103,18 @@ function isOverdue(task) {
             </el-table-column>
             <el-table-column prop="planned_end" label="截止" width="110" />
           </el-table>
-          <el-empty v-if="reviewTasks.length === 0" description="暂无待审核任务" :image-size="60" />
+          <EmptyState v-if="reviewTasks.length === 0" text="暂无待审核任务" />
+        </el-tab-pane>
+        <el-tab-pane :label="`已完成 (${doneTasks.length})`" name="done">
+          <el-table :data="doneTasks" style="width: 100%" @row-click="goProject" highlight-current-row size="small">
+            <el-table-column prop="task_no" label="编号" width="160" class-name="col-task-no" />
+            <el-table-column prop="title" label="任务" min-width="180" />
+            <el-table-column label="阶段" width="100">
+              <template #default="{ row }">{{ PHASE_MAP[row.phase] || row.phase }}</template>
+            </el-table-column>
+            <el-table-column prop="planned_end" label="截止" width="110" />
+          </el-table>
+          <EmptyState v-if="doneTasks.length === 0" text="暂无已完成任务" />
         </el-tab-pane>
         <el-tab-pane name="overdue">
           <template #label>
@@ -139,7 +142,7 @@ function isOverdue(task) {
               </template>
             </el-table-column>
           </el-table>
-          <el-empty v-if="overdueTasks.length === 0" description="暂无超期任务" :image-size="60" />
+          <EmptyState v-if="overdueTasks.length === 0" text="暂无超期任务" />
         </el-tab-pane>
       </el-tabs>
     </el-card>
@@ -150,6 +153,11 @@ function isOverdue(task) {
 .stat-card { text-align: center; padding: 8px 0; }
 .stat-number { font-size: 32px; font-weight: bold; }
 .stat-label { font-size: 14px; color: #909399; margin-top: 4px; }
+
+.stat-card-clickable {
+  cursor: pointer;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
 
 @media (max-width: 767px) {
   .stat-number { font-size: 24px; }

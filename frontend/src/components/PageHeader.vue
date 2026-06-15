@@ -25,7 +25,7 @@ defineProps({
   margin: 0;
   font-size: 20px;
   font-weight: 600;
-  color: #1f2329;
+  color: var(--text-title);
 }
 .page-header__actions {
   display: flex;

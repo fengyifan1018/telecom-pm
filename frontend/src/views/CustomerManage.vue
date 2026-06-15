@@ -1,5 +1,6 @@
 <script setup>
 import PageHeader from '../components/PageHeader.vue'
+import EmptyState from '../components/EmptyState.vue'
 import { ref, onMounted, computed } from 'vue'
 import { listCustomers, createCustomer, updateCustomer, deleteCustomer } from '../api/projects'
 import { useAuthStore } from '../stores/auth'
@@ -109,7 +110,13 @@ async function handleDelete(row) {
         />
       </div>
 
-      <el-table :data="filtered" v-loading="loading" border stripe>
+      <el-skeleton v-if="loading" :rows="6" animated style="padding: 8px 0" />
+      <el-table v-else :data="filtered" border stripe>
+        <template #empty>
+          <EmptyState text="暂无客户">
+            <el-button v-if="canEdit" type="primary" @click="openCreate">新增客户</el-button>
+          </EmptyState>
+        </template>
         <el-table-column prop="name" label="客户名称" min-width="180" />
         <el-table-column prop="contact_name" label="联系人" width="120">
           <template #default="{ row }">{{ row.contact_name || '-' }}</template>

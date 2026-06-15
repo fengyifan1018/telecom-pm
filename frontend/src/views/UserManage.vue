@@ -5,6 +5,7 @@ import { ROLE_MAP } from '../utils/constants'
 import { ElMessage } from 'element-plus'
 import http from '../api/index'
 import PageHeader from '../components/PageHeader.vue'
+import EmptyState from '../components/EmptyState.vue'
 
 const users = ref([])
 const loading = ref(false)
@@ -103,7 +104,9 @@ onMounted(fetchUsers)
       <el-button type="primary" @click="openCreate">新增用户</el-button>
     </PageHeader>
 
-    <el-table :data="users" v-loading="loading" border stripe>
+    <el-skeleton v-if="loading" :rows="6" animated style="padding: 8px 0" />
+    <el-table v-else :data="users" border stripe>
+      <template #empty><EmptyState text="暂无用户" /></template>
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="username" label="用户名" width="120" />
       <el-table-column prop="display_name" label="显示名" width="150" />

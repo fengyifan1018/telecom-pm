@@ -10,6 +10,7 @@ import TaskDrawer from '../components/TaskDrawer.vue'
 import GanttChart from '../components/GanttChart.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as XLSX from 'xlsx'
+import EmptyState from '../components/EmptyState.vue'
 import { listCRs, createCR, approveCR, rejectCR } from '../api/change_requests'
 import { listDeliverables, uploadDeliverable, deleteDeliverable } from '../api/deliverables'
 import http from '../api/index'
@@ -303,6 +304,11 @@ async function handleRejectCR() {
 <template>
   <div v-loading="loading">
     <template v-if="project">
+      <el-breadcrumb separator="/" style="margin-bottom: 12px">
+        <el-breadcrumb-item :to="{ path: '/projects' }">项目管理</el-breadcrumb-item>
+        <el-breadcrumb-item>{{ project.project_no }}</el-breadcrumb-item>
+      </el-breadcrumb>
+
       <!-- Header -->
       <el-card style="margin-bottom: 16px">
         <div style="display: flex; justify-content: space-between; align-items: flex-start">
@@ -413,7 +419,7 @@ async function handleRejectCR() {
             <div style="display: flex; justify-content: flex-end; margin-bottom: 12px">
               <el-button size="small" type="primary" @click="showCRDialog = true">提交变更申请</el-button>
             </div>
-            <el-empty v-if="changeRequests.length === 0" description="暂无变更申请" :image-size="60" />
+            <EmptyState v-if="changeRequests.length === 0" text="暂无变更申请" />
             <el-table v-else :data="changeRequests" size="small">
               <el-table-column prop="cr_no" label="编号" width="160" />
               <el-table-column prop="title" label="标题" min-width="180" />
@@ -443,7 +449,7 @@ async function handleRejectCR() {
         </el-tabs>
       </el-card>
 
-      <el-empty v-if="tasks.length === 0 && project.status === 'active'" description="暂无任务" />
+      <EmptyState v-if="tasks.length === 0 && project.status === 'active'" text="暂无任务" />
     </template>
 
     <!-- Task Drawer -->

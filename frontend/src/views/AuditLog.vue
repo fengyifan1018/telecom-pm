@@ -1,5 +1,6 @@
 <script setup>
 import PageHeader from '../components/PageHeader.vue'
+import EmptyState from '../components/EmptyState.vue'
 import { ref, onMounted } from 'vue'
 import { getAuditLogs } from '../api/audit'
 
@@ -127,7 +128,9 @@ onMounted(fetchLogs)
         <el-button @click="filters = { action: '', resource_type: '', start_date: '', end_date: '', page: 1, page_size: 50 }; fetchLogs()">重置</el-button>
       </div>
 
-      <el-table :data="logs" v-loading="loading" border stripe>
+      <el-skeleton v-if="loading" :rows="6" animated style="padding: 8px 0" />
+      <el-table v-else :data="logs" border stripe>
+        <template #empty><EmptyState text="暂无审计记录" /></template>
         <el-table-column prop="created_at" label="时间" width="160">
           <template #default="{ row }">{{ row.created_at?.slice(0, 19).replace('T', ' ') }}</template>
         </el-table-column>

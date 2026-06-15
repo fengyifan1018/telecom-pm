@@ -10,6 +10,7 @@ import {
 } from '@element-plus/icons-vue'
 import { getNotifications, getUnreadCount, markNotificationRead, markAllRead } from '../api/tasks'
 import http from '../api/index'
+import BrandLogo from './BrandLogo.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -121,8 +122,8 @@ onMounted(() => {
   <el-container style="height: 100vh">
     <!-- Desktop sidebar -->
     <el-aside v-if="!isMobile" width="200px" style="background: #001529">
-      <div style="padding: 16px; color: #fff; font-size: 16px; font-weight: bold; text-align: center">
-        通信项目管理
+      <div style="display: flex; justify-content: center; padding: 18px 16px">
+        <BrandLogo :height="30" />
       </div>
       <el-menu
         :default-active="$route.path"
@@ -171,15 +172,18 @@ onMounted(() => {
         </div>
       </el-header>
 
-      <el-main :style="isMobile ? 'background:#f5f5f5;padding:12px;padding-bottom:70px' : 'background:#f5f5f5'">
+      <el-main :style="isMobile ? 'background:var(--page-bg);padding:12px;padding-bottom:70px' : 'background:var(--page-bg)'">
         <router-view />
+        <footer class="app-footer">通信项目管理系统 · v0.1.0 · © 2026</footer>
       </el-main>
     </el-container>
 
     <!-- Mobile slide-out nav -->
     <el-drawer v-if="isMobile" v-model="showMobileNav" direction="ltr" size="220px" :with-header="false">
       <div style="background:#001529;height:100%;overflow-y:auto">
-        <div style="padding:20px 16px 12px;color:#fff;font-size:16px;font-weight:bold">通信项目管理</div>
+        <div style="padding:20px 16px 12px">
+          <BrandLogo :height="30" />
+        </div>
         <el-menu
           :default-active="$route.path"
           background-color="#001529"
@@ -264,6 +268,12 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.app-footer {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: var(--sp-6) 0 var(--sp-2);
+}
 .mobile-bottom-nav {
   position: fixed;
   bottom: 0;

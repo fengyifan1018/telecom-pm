@@ -1,5 +1,6 @@
 <script setup>
 import PageHeader from '../components/PageHeader.vue'
+import EmptyState from '../components/EmptyState.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { listProjects, createProject, listCustomers, deleteProject } from '../api/projects'
@@ -128,7 +129,13 @@ async function handleDelete(row, e) {
         </el-select>
       </div>
 
-      <el-table :data="projects" v-loading="loading" @row-click="goDetail" highlight-current-row style="cursor: pointer">
+      <el-skeleton v-if="loading" :rows="6" animated style="padding: 8px 0" />
+      <el-table v-else :data="projects" @row-click="goDetail" highlight-current-row style="cursor: pointer">
+        <template #empty>
+          <EmptyState text="暂无项目">
+            <el-button type="primary" @click="showCreate = true">新建项目</el-button>
+          </EmptyState>
+        </template>
         <el-table-column prop="project_no" label="项目编号" width="160" />
         <el-table-column prop="name" label="项目名称" min-width="180" />
         <el-table-column prop="customer_name" label="客户" width="130">

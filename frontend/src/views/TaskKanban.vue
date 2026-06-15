@@ -1,5 +1,6 @@
 <script setup>
 import PageHeader from '../components/PageHeader.vue'
+import EmptyState from '../components/EmptyState.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { listTasks, startTask, submitTask, approveTask } from '../api/tasks'
@@ -175,7 +176,7 @@ async function onDrop(event, colKey) {
             </div>
             <div v-if="VALID_TRANSITIONS[task.status]" class="drag-hint">拖拽→{{ STATUS_MAP[VALID_TRANSITIONS[task.status].target]?.label }}</div>
           </div>
-          <el-empty v-if="col.tasks.length === 0" description="" :image-size="40" />
+          <EmptyState v-if="col.tasks.length === 0" text="" :size="28" />
         </div>
       </div>
     </div>

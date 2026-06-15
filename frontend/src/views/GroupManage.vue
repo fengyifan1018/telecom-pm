@@ -1,5 +1,6 @@
 <script setup>
 import PageHeader from '../components/PageHeader.vue'
+import EmptyState from '../components/EmptyState.vue'
 import { ref, onMounted } from 'vue'
 import { listGroups, createGroup, updateGroup, deleteGroup, listGroupMembers, addGroupMember, removeGroupMember } from '../api/groups'
 import { listUsers } from '../api/tasks'
@@ -139,7 +140,13 @@ function availableUsers(groupId) {
       <el-button type="primary" @click="openCreate">新建用户组</el-button>
     </PageHeader>
 
-    <el-table :data="groups" v-loading="loading" border stripe row-key="id">
+    <el-skeleton v-if="loading" :rows="6" animated style="padding: 8px 0" />
+    <el-table v-else :data="groups" border stripe row-key="id">
+      <template #empty>
+        <EmptyState text="暂无用户组">
+          <el-button type="primary" @click="openCreate">新建用户组</el-button>
+        </EmptyState>
+      </template>
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="name" label="用户组名称" min-width="150" />
       <el-table-column prop="description" label="描述" min-width="200">
@@ -184,10 +191,10 @@ function availableUsers(groupId) {
         </el-button>
       </div>
 
-      <el-empty
+      <EmptyState
         v-if="!membersByGroup[expandedGroupId]?.length"
-        description="暂无成员"
-        :image-size="50"
+        text="暂无成员"
+        :size="32"
       />
       <el-table v-else :data="membersByGroup[expandedGroupId]" size="small" border>
         <el-table-column prop="display_name" label="显示名" width="140" />

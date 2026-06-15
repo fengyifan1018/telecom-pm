@@ -23,6 +23,7 @@ const routes = [
       { path: 'permissions', name: 'PermissionManage', component: () => import('../views/PermissionManage.vue') },
       { path: 'customers', name: 'CustomerManage', component: () => import('../views/CustomerManage.vue') },
       { path: 'audit', name: 'AuditLog', component: () => import('../views/AuditLog.vue') },
+      { path: ':pathMatch(.*)*', name: 'NotFound', component: () => import('../views/NotFound.vue') },
     ],
   },
 ]

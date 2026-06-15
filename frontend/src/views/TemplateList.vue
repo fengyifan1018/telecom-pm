@@ -1,5 +1,6 @@
 <script setup>
 import PageHeader from '../components/PageHeader.vue'
+import EmptyState from '../components/EmptyState.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { PRODUCT_TYPE_MAP, PHASE_MAP } from '../utils/constants'
@@ -172,12 +173,13 @@ async function toggleActive(t) {
 </script>
 
 <template>
-  <div v-loading="loading">
+  <div>
     <PageHeader title="流程模板管理">
       <el-button v-if="isAdmin" type="primary" @click="openCreate">新建模板</el-button>
     </PageHeader>
 
-    <el-row :gutter="16">
+    <el-skeleton v-if="loading" :rows="6" animated />
+    <el-row v-else :gutter="16">
       <el-col :span="24" v-for="t in templates" :key="t.id" style="margin-bottom: 16px">
         <el-card :class="{ 'template-inactive': !t.is_active }">
           <div class="template-header" @click="toggleExpand(t)">
@@ -233,7 +235,7 @@ async function toggleActive(t) {
       </el-col>
     </el-row>
 
-    <el-empty v-if="!loading && templates.length === 0" description="暂无模板" />
+    <EmptyState v-if="!loading && templates.length === 0" text="暂无模板" />
 
     <!-- Editor Dialog -->
     <el-dialog
