@@ -33,10 +33,19 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
   if (!to.meta.public && !auth.token) {
     return '/login'
+  }
+  // 硬刷新后 token 由 localStorage 恢复，但 user/permissions 丢失，需重新拉取
+  if (auth.token && !auth.user) {
+    try {
+      await auth.fetchUser()
+    } catch {
+      auth.logout()
+      return '/login'
+    }
   }
 })
 
