@@ -12,4 +12,16 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (id.includes('echarts')) return 'echarts'
+          if (id.includes('element-plus')) return 'element'
+          if (/[\\/]node_modules[\\/](vue|vue-router|pinia|axios|@vue)[\\/]/.test(id)) return 'vendor'
+        },
+      },
+    },
+  },
 })

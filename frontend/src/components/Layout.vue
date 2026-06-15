@@ -9,6 +9,7 @@ import {
   OfficeBuilding, User, UserFilled, Lock, Tickets,
   Avatar, RefreshRight, Warning, AlarmClock, WarnTriangleFilled,
   CircleCheck, CircleClose, CircleCheckFilled, Promotion, ChatDotRound, Bell,
+  Fold, Menu,
 } from '@element-plus/icons-vue'
 import { getNotifications, getUnreadCount, markNotificationRead, markAllRead } from '../api/tasks'
 import http from '../api/index'
@@ -178,17 +179,15 @@ onMounted(() => {
       <!-- Header -->
       <el-header :style="isMobile ? 'display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid #eee' : 'display:flex;align-items:center;justify-content:flex-end;gap:16px;border-bottom:1px solid #eee'">
         <!-- Mobile: hamburger -->
-        <el-button v-if="isMobile" text @click="showMobileNav = true" style="font-size: 20px; padding: 4px">
-          ☰
+        <el-button v-if="isMobile" text @click="showMobileNav = true" style="padding: 4px">
+          <el-icon :size="20"><Fold /></el-icon>
         </el-button>
         <span v-if="isMobile" style="font-weight: bold; font-size: 15px">通信项目管理</span>
 
         <div style="display: flex; align-items: center; gap: 12px">
           <el-badge :value="unreadCount" :hidden="!unreadCount" :max="99">
             <el-button circle @click="openNotifications" title="消息通知">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
-              </svg>
+              <el-icon><Bell /></el-icon>
             </el-button>
           </el-badge>
           <el-dropdown @command="handleCommand">
@@ -242,19 +241,19 @@ onMounted(() => {
     <!-- Mobile bottom nav -->
     <div v-if="isMobile" class="mobile-bottom-nav">
       <router-link to="/" class="bottom-nav-item" :class="{ active: $route.path === '/' }">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        <el-icon :size="22"><HomeFilled /></el-icon>
         <span>工作台</span>
       </router-link>
       <router-link to="/projects" class="bottom-nav-item" :class="{ active: $route.path.startsWith('/projects') }">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M20 6h-2.18c.07-.44.18-.88.18-1a3 3 0 0 0-3-3c-1 0-1.96.54-2.5 1.35l-.5.67-.5-.68C10.96 2.54 10 2 9 2 7.34 2 6 3.34 6 5c0 .12.11.56.18 1H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/></svg>
+        <el-icon :size="22"><Folder /></el-icon>
         <span>项目</span>
       </router-link>
       <router-link to="/kanban" class="bottom-nav-item" :class="{ active: $route.path === '/kanban' }">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M4 6h2v12H4zm4 6h2v6H8zm4-3h2v9h-2zm4-5h2v14h-2z"/></svg>
+        <el-icon :size="22"><Grid /></el-icon>
         <span>看板</span>
       </router-link>
       <button class="bottom-nav-item" @click="showMobileNav = true">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        <el-icon :size="22"><Menu /></el-icon>
         <span>更多</span>
       </button>
     </div>

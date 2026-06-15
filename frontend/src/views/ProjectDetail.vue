@@ -9,7 +9,6 @@ import PhaseProgress from '../components/PhaseProgress.vue'
 import TaskDrawer from '../components/TaskDrawer.vue'
 import GanttChart from '../components/GanttChart.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import * as XLSX from 'xlsx'
 import EmptyState from '../components/EmptyState.vue'
 import { listCRs, createCR, approveCR, rejectCR } from '../api/change_requests'
 import { listDeliverables, uploadDeliverable, deleteDeliverable } from '../api/deliverables'
@@ -171,7 +170,8 @@ async function handleDelete() {
   }
 }
 
-function exportTasks() {
+async function exportTasks() {
+  const XLSX = await import('xlsx')
   const rows = tasks.value.map(t => ({
     '任务编号': t.task_no,
     '任务名称': t.title,
