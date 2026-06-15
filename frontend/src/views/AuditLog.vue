@@ -1,6 +1,7 @@
 <script setup>
 import PageHeader from '../components/PageHeader.vue'
 import EmptyState from '../components/EmptyState.vue'
+import { formatDateTime } from '../utils/format'
 import { ref, onMounted } from 'vue'
 import { getAuditLogs } from '../api/audit'
 
@@ -132,7 +133,7 @@ onMounted(fetchLogs)
       <el-table v-else :data="logs" border stripe>
         <template #empty><EmptyState text="暂无审计记录" /></template>
         <el-table-column prop="created_at" label="时间" width="160">
-          <template #default="{ row }">{{ row.created_at?.slice(0, 19).replace('T', ' ') }}</template>
+          <template #default="{ row }">{{ formatDateTime(row.created_at, true) }}</template>
         </el-table-column>
         <el-table-column prop="user_name" label="操作人" width="110" />
         <el-table-column prop="action" label="操作" width="110">

@@ -1,6 +1,7 @@
 <script setup>
 import PageHeader from '../components/PageHeader.vue'
 import EmptyState from '../components/EmptyState.vue'
+import { todayStr } from '../utils/format'
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { listTasks, startTask, submitTask, approveTask } from '../api/tasks'
@@ -171,7 +172,7 @@ async function onDrop(event, colKey) {
               <span v-if="task.assignee_name" class="card-assignee">{{ task.assignee_name }}</span>
             </div>
             <el-tag v-if="col.key === '_exception'" :type="task.status === 'blocked' ? 'danger' : 'warning'" size="small" style="margin-top: 4px">{{ STATUS_MAP[task.status]?.label }}</el-tag>
-            <div v-if="task.planned_end" class="card-due" :class="{ 'is-overdue': task.planned_end < new Date().toISOString().slice(0, 10) && col.key !== 'done' }">
+            <div v-if="task.planned_end" class="card-due" :class="{ 'is-overdue': task.planned_end < todayStr() && col.key !== 'done' }">
               {{ task.planned_end }}
             </div>
             <div v-if="VALID_TRANSITIONS[task.status]" class="drag-hint">拖拽→{{ STATUS_MAP[VALID_TRANSITIONS[task.status].target]?.label }}</div>

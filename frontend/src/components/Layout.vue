@@ -14,6 +14,7 @@ import {
 import { getNotifications, getUnreadCount, markNotificationRead, markAllRead } from '../api/tasks'
 import http from '../api/index'
 import BrandLogo from './BrandLogo.vue'
+import { formatDateTime } from '../utils/format'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -305,7 +306,7 @@ onMounted(() => {
           <div class="notification-body">
             <div class="notification-title">{{ n.title }}</div>
             <div v-if="n.content" class="notification-content">{{ n.content }}</div>
-            <div class="notification-time">{{ n.created_at?.slice(0, 16).replace('T', ' ') }}</div>
+            <div class="notification-time">{{ formatDateTime(n.created_at) }}</div>
           </div>
         </div>
       </div>

@@ -10,6 +10,7 @@ import TaskDrawer from '../components/TaskDrawer.vue'
 import GanttChart from '../components/GanttChart.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import EmptyState from '../components/EmptyState.vue'
+import { formatDate } from '../utils/format'
 import { listCRs, createCR, approveCR, rejectCR } from '../api/change_requests'
 import { listDeliverables, uploadDeliverable, deleteDeliverable } from '../api/deliverables'
 import http from '../api/index'
@@ -433,7 +434,7 @@ async function handleRejectCR() {
                 </template>
               </el-table-column>
               <el-table-column prop="created_at" label="提交时间" width="120">
-                <template #default="{ row }">{{ row.created_at?.slice(0, 10) }}</template>
+                <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
               </el-table-column>
               <el-table-column label="操作" width="140" v-if="isPmOrAdmin">
                 <template #default="{ row }">

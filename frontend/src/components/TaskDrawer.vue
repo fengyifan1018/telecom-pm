@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted, onBeforeUnmount } from 'v
 import { startTask, submitTask, approveTask, rejectTask, assignTask, updateTask, getComments, addComment, getTransitions, listUsers, listAttachments, uploadAttachment, deleteAttachment, getAttachmentDownloadUrl, listEscalations, createEscalation, resolveEscalation } from '../api/tasks'
 import http from '../api/index'
 import { STATUS_MAP, PHASE_MAP, ROLE_MAP } from '../utils/constants'
+import { formatDateTime } from '../utils/format'
 import { useAuthStore } from '../stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -389,7 +390,7 @@ function close() {
         </el-tooltip>
         <a v-else href="#" class="attachment-name" @click.prevent="handleDownload(att)">{{ att.original_name }}</a>
         <span class="attachment-size">{{ formatSize(att.size) }}</span>
-        <span class="attachment-time">{{ att.created_at?.slice(0, 16).replace('T', ' ') }}</span>
+        <span class="attachment-time">{{ formatDateTime(att.created_at) }}</span>
         <el-button size="small" text type="danger" @click="handleDeleteAttachment(att)">删除</el-button>
       </div>
 
@@ -418,7 +419,7 @@ function close() {
           <el-tag :type="esc.status === 'resolved' ? 'success' : 'danger'" size="small">
             {{ esc.status === 'resolved' ? '已解决' : '待处理' }}
           </el-tag>
-          <span style="font-size: 12px; color: #909399">{{ esc.created_at?.slice(0, 16).replace('T', ' ') }}</span>
+          <span style="font-size: 12px; color: #909399">{{ formatDateTime(esc.created_at) }}</span>
         </div>
         <div style="font-size: 13px; margin-bottom: 4px">{{ esc.description }}</div>
         <div v-if="esc.resolution" style="font-size: 13px; color: #67c23a">解决: {{ esc.resolution }}</div>
@@ -432,7 +433,7 @@ function close() {
       <div style="max-height: 200px; overflow-y: auto; margin-bottom: 12px">
         <div v-for="c in comments" :key="c.id" style="margin-bottom: 12px; padding: 8px; background: #f9f9f9; border-radius: 4px">
           <div style="font-size: 12px; color: #999; margin-bottom: 4px">
-            {{ c.user_name || `用户${c.user_id}` }} · {{ c.created_at?.slice(0, 16).replace('T', ' ') }}
+            {{ c.user_name || `用户${c.user_id}` }} · {{ formatDateTime(c.created_at) }}
           </div>
           <div style="font-size: 14px">{{ c.content }}</div>
         </div>
@@ -446,7 +447,7 @@ function close() {
       <!-- Transitions -->
       <el-divider content-position="left">流转记录</el-divider>
       <el-timeline>
-        <el-timeline-item v-for="t in transitions" :key="t.id" :timestamp="t.created_at?.slice(0, 16).replace('T', ' ')">
+        <el-timeline-item v-for="t in transitions" :key="t.id" :timestamp="formatDateTime(t.created_at)">
           <span style="color: #409eff">{{ t.operator_name }}</span>:
           {{ t.from_status || '(创建)' }} → {{ t.to_status }}
           <span v-if="t.remark" style="color: #e6a23c; margin-left: 8px">{{ t.remark }}</span>

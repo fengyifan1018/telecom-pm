@@ -6,10 +6,11 @@ import { getDashboard, listTasks } from '../api/tasks'
 import { STATUS_MAP, PHASE_MAP } from '../utils/constants'
 import PageHeader from '../components/PageHeader.vue'
 import EmptyState from '../components/EmptyState.vue'
+import { todayStr, overdueDays } from '../utils/format'
 
 const router = useRouter()
 const auth = useAuthStore()
-const today = new Date().toISOString().slice(0, 10)
+const today = todayStr()
 const stats = ref({ pending: 0, active: 0, review: 0, done: 0, overdue: 0 })
 const myTasks = ref([])
 const reviewTasks = ref([])
@@ -51,7 +52,7 @@ function goProject(task) {
 }
 
 function isOverdue(task) {
-  return task.planned_end && task.planned_end < new Date().toISOString().slice(0, 10)
+  return task.planned_end && task.planned_end < today
 }
 </script>
 
@@ -137,7 +138,7 @@ function isOverdue(task) {
               <template #default="{ row }">
                 <span style="color: #f56c6c; font-weight: bold">{{ row.planned_end }}</span>
                 <span style="color: #f56c6c; font-size: 11px; margin-left: 4px">
-                  (超{{ Math.floor((new Date(today) - new Date(row.planned_end)) / 86400000) }}天)
+                  (超{{ overdueDays(row.planned_end) }}天)
                 </span>
               </template>
             </el-table-column>

@@ -1,6 +1,7 @@
 <script setup>
 import PageHeader from '../components/PageHeader.vue'
 import EmptyState from '../components/EmptyState.vue'
+import { formatDate } from '../utils/format'
 import { ref, onMounted, computed, watch } from 'vue'
 import { listCustomers, createCustomer, updateCustomer, deleteCustomer } from '../api/projects'
 import { useAuthStore } from '../stores/auth'
@@ -142,7 +143,7 @@ async function handleDelete(row) {
           </template>
         </el-table-column>
         <el-table-column prop="created_at" label="创建时间" width="120">
-          <template #default="{ row }">{{ row.created_at?.slice(0, 10) }}</template>
+          <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
         </el-table-column>
         <el-table-column v-if="canEdit" label="操作" width="130">
           <template #default="{ row }">

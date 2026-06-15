@@ -1,6 +1,7 @@
 <script setup>
 import PageHeader from '../components/PageHeader.vue'
 import EmptyState from '../components/EmptyState.vue'
+import { formatDate } from '../utils/format'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { listProjects, createProject, listCustomers, deleteProject } from '../api/projects'
@@ -161,7 +162,7 @@ async function handleDelete(row, e) {
           <template #default="{ row }">{{ row.pm_name || '-' }}</template>
         </el-table-column>
         <el-table-column prop="created_at" label="创建时间" width="110">
-          <template #default="{ row }">{{ row.created_at?.slice(0, 10) }}</template>
+          <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
         </el-table-column>
         <el-table-column v-if="isAdmin" label="操作" width="80" @click.stop>
           <template #default="{ row }">
