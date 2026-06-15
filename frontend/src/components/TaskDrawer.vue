@@ -10,8 +10,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 const props = defineProps({
   task: { type: Object, default: null },
   visible: { type: Boolean, default: false },
+  showProjectLink: { type: Boolean, default: false },
 })
-const emit = defineEmits(['update:visible', 'refresh'])
+const emit = defineEmits(['update:visible', 'refresh', 'view-project'])
 
 const auth = useAuthStore()
 
@@ -282,6 +283,11 @@ function close() {
 <template>
   <el-drawer :model-value="visible" @update:model-value="close" :size="isMobile ? '100%' : '550px'" :title="task?.title">
     <template v-if="task">
+      <div v-if="showProjectLink" style="margin-bottom: 12px">
+        <el-button link type="primary" size="small" @click="emit('view-project', task.project_id)">
+          查看所属项目 →
+        </el-button>
+      </div>
       <div style="margin-bottom: 16px">
         <el-descriptions :column="2" border size="small">
           <el-descriptions-item label="编号">{{ task.task_no }}</el-descriptions-item>

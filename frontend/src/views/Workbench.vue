@@ -6,6 +6,7 @@ import { getDashboard, listTasks } from '../api/tasks'
 import { STATUS_MAP, PHASE_MAP } from '../utils/constants'
 import PageHeader from '../components/PageHeader.vue'
 import EmptyState from '../components/EmptyState.vue'
+import TaskDrawer from '../components/TaskDrawer.vue'
 import { todayStr, overdueDays } from '../utils/format'
 
 const router = useRouter()
@@ -18,6 +19,8 @@ const doneTasks = ref([])
 const overdueTasks = ref([])
 const loading = ref(true)
 const activeTab = ref('active')
+const drawerVisible = ref(false)
+const selectedTask = ref(null)
 
 const statCards = computed(() => [
   { key: 'active', label: '进行中', value: stats.value.active, color: '#1890ff' },
@@ -26,7 +29,8 @@ const statCards = computed(() => [
   { key: 'overdue', label: '超期', value: stats.value.overdue, color: '#f56c6c' },
 ])
 
-onMounted(async () => {
+async function loadData() {
+  loading.value = true
   try {
     const [dashRes, taskRes, reviewRes, doneRes, activeRes, reviewRes2] = await Promise.all([
       getDashboard(),
@@ -45,10 +49,18 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-})
+}
 
-function goProject(task) {
-  router.push(`/projects/${task.project_id}`)
+onMounted(loadData)
+
+function openTask(task) {
+  selectedTask.value = task
+  drawerVisible.value = true
+}
+
+function goProject(projectId) {
+  drawerVisible.value = false
+  router.push(`/projects/${projectId}`)
 }
 
 function isOverdue(task) {
@@ -79,7 +91,7 @@ function isOverdue(task) {
     <el-card>
       <el-tabs v-model="activeTab">
         <el-tab-pane :label="`进行中 (${myTasks.length})`" name="active">
-          <el-table :data="myTasks" style="width: 100%" @row-click="goProject" highlight-current-row size="small">
+          <el-table :data="myTasks" style="width: 100%" @row-click="openTask" highlight-current-row size="small">
             <el-table-column prop="task_no" label="编号" width="160" class-name="col-task-no" />
             <el-table-column prop="title" label="任务" min-width="180" />
             <el-table-column label="阶段" width="100">
@@ -96,7 +108,7 @@ function isOverdue(task) {
           <EmptyState v-if="myTasks.length === 0" text="暂无进行中的任务" />
         </el-tab-pane>
         <el-tab-pane :label="`待审核 (${reviewTasks.length})`" name="review">
-          <el-table :data="reviewTasks" style="width: 100%" @row-click="goProject" highlight-current-row size="small">
+          <el-table :data="reviewTasks" style="width: 100%" @row-click="openTask" highlight-current-row size="small">
             <el-table-column prop="task_no" label="编号" width="160" class-name="col-task-no" />
             <el-table-column prop="title" label="任务" min-width="180" />
             <el-table-column label="阶段" width="100">
@@ -107,7 +119,7 @@ function isOverdue(task) {
           <EmptyState v-if="reviewTasks.length === 0" text="暂无待审核任务" />
         </el-tab-pane>
         <el-tab-pane :label="`已完成 (${doneTasks.length})`" name="done">
-          <el-table :data="doneTasks" style="width: 100%" @row-click="goProject" highlight-current-row size="small">
+          <el-table :data="doneTasks" style="width: 100%" @row-click="openTask" highlight-current-row size="small">
             <el-table-column prop="task_no" label="编号" width="160" class-name="col-task-no" />
             <el-table-column prop="title" label="任务" min-width="180" />
             <el-table-column label="阶段" width="100">
@@ -123,7 +135,7 @@ function isOverdue(task) {
               超期 ({{ overdueTasks.length }})
             </span>
           </template>
-          <el-table :data="overdueTasks" style="width: 100%" @row-click="goProject" highlight-current-row size="small">
+          <el-table :data="overdueTasks" style="width: 100%" @row-click="openTask" highlight-current-row size="small">
             <el-table-column prop="task_no" label="编号" width="160" class-name="col-task-no" />
             <el-table-column prop="title" label="任务" min-width="180" />
             <el-table-column label="阶段" width="100">
@@ -147,6 +159,14 @@ function isOverdue(task) {
         </el-tab-pane>
       </el-tabs>
     </el-card>
+
+    <TaskDrawer
+      v-model:visible="drawerVisible"
+      :task="selectedTask"
+      show-project-link
+      @view-project="goProject"
+      @refresh="loadData"
+    />
   </div>
 </template>
 
