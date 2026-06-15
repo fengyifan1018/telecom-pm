@@ -97,7 +97,7 @@ async function handleDelete(row, e) {
     ElMessage.success('项目已删除')
     fetchProjects()
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e.response?.data?.detail || '删除失败')
+    // 取消无需提示，请求错误由全局拦截器统一处理
   }
 }
 </script>

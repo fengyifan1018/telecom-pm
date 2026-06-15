@@ -76,7 +76,7 @@ async function handleSubmit() {
     showDialog.value = false
     await fetchGroups()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '操作失败')
+    // 错误提示由全局拦截器统一处理
   } finally {
     submitLoading.value = false
   }
@@ -90,7 +90,7 @@ async function handleDelete(group) {
     if (expandedGroupId.value === group.id) expandedGroupId.value = null
     await fetchGroups()
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e.response?.data?.detail || '删除失败')
+    // 取消无需提示，请求错误由全局拦截器统一处理
   }
 }
 
@@ -117,7 +117,7 @@ async function handleAddMember(groupId) {
     const g = groups.value.find(g => g.id === groupId)
     if (g) g.member_count++
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '添加失败')
+    // 错误提示由全局拦截器统一处理
   } finally {
     addMemberLoading.value = false
   }
@@ -132,7 +132,7 @@ async function handleRemoveMember(groupId, userId, displayName) {
     const g = groups.value.find(g => g.id === groupId)
     if (g) g.member_count--
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e.response?.data?.detail || '移除失败')
+    // 取消无需提示，请求错误由全局拦截器统一处理
   }
 }
 

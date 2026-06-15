@@ -37,7 +37,7 @@ async function toggleRole(perm, role) {
     await updatePermission(perm.key, newRoles)
     perm.roles = newRoles
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '保存失败')
+    // 错误提示由全局拦截器统一处理
   } finally {
     saving.value = ''
   }
@@ -50,7 +50,7 @@ async function handleReset() {
     ElMessage.success('已重置为默认权限')
     await fetchData()
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e.response?.data?.detail || '操作失败')
+    // 取消无需提示，请求错误由全局拦截器统一处理
   }
 }
 </script>

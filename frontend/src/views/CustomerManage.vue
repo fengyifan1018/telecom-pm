@@ -82,7 +82,7 @@ async function handleSubmit() {
     showDialog.value = false
     await fetchCustomers()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '操作失败')
+    // 错误提示由全局拦截器统一处理
   } finally {
     submitLoading.value = false
   }
@@ -99,7 +99,7 @@ async function handleDelete(row) {
     ElMessage.success('已删除')
     await fetchCustomers()
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e.response?.data?.detail || '删除失败')
+    // 取消无需提示，请求错误由全局拦截器统一处理
   }
 }
 </script>

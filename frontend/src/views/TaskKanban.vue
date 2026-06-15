@@ -122,7 +122,7 @@ async function onDrop(event, colKey) {
     task.status = colKey
     ElMessage.success('状态已更新')
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '操作失败，请在任务详情中操作')
+    // 错误提示由全局拦截器统一处理
     await fetchTasks()
   }
 }

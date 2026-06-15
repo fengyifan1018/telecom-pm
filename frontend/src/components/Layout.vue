@@ -141,7 +141,7 @@ async function handleChangePwd() {
     ElMessage.success('密码修改成功')
     showPwdDialog.value = false
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '修改失败')
+    // 错误提示由全局拦截器统一处理
   } finally {
     pwdLoading.value = false
   }

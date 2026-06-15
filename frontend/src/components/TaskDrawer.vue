@@ -67,7 +67,7 @@ async function handleStart() {
     ElMessage.success('任务已开始')
     emit('refresh')
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '操作失败')
+    // 错误提示由全局拦截器统一处理
   } finally {
     loading.value = false
   }
@@ -80,7 +80,7 @@ async function handleSubmit() {
     ElMessage.success('已提交审核')
     emit('refresh')
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '操作失败')
+    // 错误提示由全局拦截器统一处理
   } finally {
     loading.value = false
   }
@@ -93,7 +93,7 @@ async function handleApprove() {
     ElMessage.success('审核通过')
     emit('refresh')
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '操作失败')
+    // 错误提示由全局拦截器统一处理
   } finally {
     loading.value = false
   }
@@ -111,7 +111,7 @@ async function handleReject() {
     ElMessage.success('已退回')
     emit('refresh')
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e.response?.data?.detail || '操作失败')
+    // 取消无需提示，请求错误由全局拦截器统一处理
   } finally {
     loading.value = false
   }
@@ -125,7 +125,7 @@ async function handleDateChange(val) {
     ElMessage.success('排期已更新')
     emit('refresh')
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '更新失败')
+    // 错误提示由全局拦截器统一处理
   } finally {
     dateLoading.value = false
   }
@@ -148,7 +148,7 @@ async function handleAssign() {
     ElMessage.success('已指派')
     emit('refresh')
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '指派失败')
+    // 错误提示由全局拦截器统一处理
   } finally {
     assignLoading.value = false
   }
@@ -175,7 +175,7 @@ async function handleUpload(file) {
     const res = await listAttachments(props.task.id)
     attachments.value = res.data
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '上传失败')
+    // 错误提示由全局拦截器统一处理
   } finally {
     uploadLoading.value = false
   }
@@ -188,7 +188,7 @@ async function handleDeleteAttachment(att) {
     attachments.value = attachments.value.filter(a => a.id !== att.id)
     ElMessage.success('已删除')
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error('删除失败')
+    // 取消无需提示，请求错误由全局拦截器统一处理
   }
 }
 
@@ -202,7 +202,7 @@ async function handleDownload(att) {
     a.click()
     URL.revokeObjectURL(url)
   } catch {
-    ElMessage.error('下载失败')
+    // 错误提示由全局拦截器统一处理
   }
 }
 
@@ -243,7 +243,7 @@ async function handleCreateEscalation() {
     const res = await listEscalations(props.task.id)
     escalations.value = res.data
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '操作失败')
+    // 错误提示由全局拦截器统一处理
   }
 }
 
@@ -259,7 +259,7 @@ async function handleResolveEscalation(esc) {
     const res = await listEscalations(props.task.id)
     escalations.value = res.data
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e.response?.data?.detail || '操作失败')
+    // 取消无需提示，请求错误由全局拦截器统一处理
   }
 }
 

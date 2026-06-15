@@ -84,7 +84,7 @@ async function handleInit() {
     ElMessage.success('项目立项成功，任务已生成')
     await fetchData()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '操作失败')
+    // 错误提示由全局拦截器统一处理
   }
 }
 
@@ -114,7 +114,7 @@ async function handleEditSave() {
     showEdit.value = false
     await fetchData()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '更新失败')
+    // 错误提示由全局拦截器统一处理
   }
 }
 
@@ -142,7 +142,7 @@ async function handleSuspend() {
     ElMessage.success('项目已暂停')
     await fetchData()
   } catch (e) {
-    if (e !== 'cancel' && e?.response) ElMessage.error(e.response?.data?.detail || '操作失败')
+    // 取消无需提示，请求错误由全局拦截器统一处理
   }
 }
 
@@ -152,7 +152,7 @@ async function handleResume() {
     ElMessage.success('项目已恢复')
     await fetchData()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '操作失败')
+    // 错误提示由全局拦截器统一处理
   }
 }
 
@@ -167,7 +167,7 @@ async function handleDelete() {
     ElMessage.success('项目已删除')
     router.push('/projects')
   } catch (e) {
-    if (e !== 'cancel' && e?.response) ElMessage.error(e.response?.data?.detail || '删除失败')
+    // 取消无需提示，请求错误由全局拦截器统一处理
   }
 }
 
@@ -212,7 +212,7 @@ async function handleUploadDeliverable(phase, file) {
     }
     deliverablesByPhase.value = byPhase
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '上传失败')
+    // 错误提示由全局拦截器统一处理
   }
 }
 
@@ -229,7 +229,7 @@ async function handleDeleteDeliverable(d) {
     }
     deliverablesByPhase.value = byPhase
   } catch (e) {
-    if (e !== 'cancel' && e?.response) ElMessage.error(e.response?.data?.detail || '删除失败')
+    // 取消无需提示，请求错误由全局拦截器统一处理
   }
 }
 
@@ -243,7 +243,7 @@ async function handleDownloadDeliverable(d) {
     a.click()
     URL.revokeObjectURL(url)
   } catch {
-    ElMessage.error('下载失败')
+    // 错误提示由全局拦截器统一处理
   }
 }
 
@@ -261,7 +261,7 @@ async function handleCreateCR() {
     const res = await listCRs(project.value.id)
     changeRequests.value = res.data
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '提交失败')
+    // 错误提示由全局拦截器统一处理
   } finally {
     crLoading.value = false
   }
@@ -274,7 +274,7 @@ async function handleApproveCR(cr) {
     const res = await listCRs(project.value.id)
     changeRequests.value = res.data
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '操作失败')
+    // 错误提示由全局拦截器统一处理
   }
 }
 
@@ -296,7 +296,7 @@ async function handleRejectCR() {
     const res = await listCRs(project.value.id)
     changeRequests.value = res.data
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '操作失败')
+    // 错误提示由全局拦截器统一处理
   }
 }
 </script>

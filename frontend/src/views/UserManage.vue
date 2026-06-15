@@ -78,7 +78,7 @@ async function handleSubmit() {
     showDialog.value = false
     await fetchUsers()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '操作失败')
+    // 错误提示由全局拦截器统一处理
   } finally {
     submitLoading.value = false
   }
@@ -90,7 +90,7 @@ async function deleteUser(user) {
     ElMessage.success('已删除')
     await fetchUsers()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '删除失败')
+    // 错误提示由全局拦截器统一处理
   }
 }
 
@@ -100,7 +100,7 @@ async function toggleActive(user) {
     user.is_active = !user.is_active
     ElMessage.success(user.is_active ? '已启用' : '已禁用')
   } catch (e) {
-    ElMessage.error('操作失败')
+    // 错误提示由全局拦截器统一处理
   }
 }
 
