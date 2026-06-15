@@ -7,6 +7,8 @@ import { ElMessage } from 'element-plus'
 import {
   HomeFilled, Folder, Grid, Histogram, Document,
   OfficeBuilding, User, UserFilled, Lock, Tickets,
+  Avatar, RefreshRight, Warning, AlarmClock, WarnTriangleFilled,
+  CircleCheck, CircleClose, CircleCheckFilled, Promotion, ChatDotRound, Bell,
 } from '@element-plus/icons-vue'
 import { getNotifications, getUnreadCount, markNotificationRead, markAllRead } from '../api/tasks'
 import http from '../api/index'
@@ -40,6 +42,39 @@ const pwdForm = ref({ old_password: '', new_password: '', confirm_password: '' }
 const pwdLoading = ref(false)
 const isAdmin = computed(() => auth.user?.role === 'admin')
 const can = (key) => auth.hasPermission(key)
+
+const NOTIF_META = {
+  task_assigned: { color: '#1890ff', icon: Avatar },
+  task_status: { color: '#1890ff', icon: RefreshRight },
+  overdue: { color: '#f56c6c', icon: Warning },
+  due_soon: { color: '#e6a23c', icon: AlarmClock },
+  escalation: { color: '#f56c6c', icon: WarnTriangleFilled },
+  cr_submitted: { color: '#1890ff', icon: Document },
+  cr_approved: { color: '#67c23a', icon: CircleCheck },
+  cr_rejected: { color: '#f56c6c', icon: CircleClose },
+  project_completed: { color: '#67c23a', icon: CircleCheckFilled },
+  project_assigned: { color: '#1890ff', icon: Folder },
+  project_initiated: { color: '#1890ff', icon: Promotion },
+  comment_mention: { color: '#909399', icon: ChatDotRound },
+}
+function notifMeta(type) {
+  return NOTIF_META[type] || { color: '#909399', icon: Bell }
+}
+
+const groupedNotifications = computed(() => {
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const yestStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+  const groups = { 今天: [], 昨天: [], 更早: [] }
+  for (const n of notifications.value) {
+    const d = n.created_at?.slice(0, 10)
+    if (d === todayStr) groups['今天'].push(n)
+    else if (d === yestStr) groups['昨天'].push(n)
+    else groups['更早'].push(n)
+  }
+  return ['今天', '昨天', '更早']
+    .filter((k) => groups[k].length)
+    .map((k) => ({ label: k, items: groups[k] }))
+})
 
 const windowWidth = ref(window.innerWidth)
 const onResize = () => { windowWidth.value = window.innerWidth }
@@ -253,15 +288,27 @@ onMounted(() => {
       <div v-if="notifications.length === 0" style="text-align: center; color: #909399; padding: 40px 0">
         暂无通知
       </div>
-      <div
-        v-for="n in notifications"
-        :key="n.id"
-        class="notification-item"
-        :class="{ unread: !n.is_read }"
-        @click="handleMarkRead(n)"
-      >
-        <div class="notification-title">{{ n.title }}</div>
-        <div class="notification-time">{{ n.created_at?.slice(0, 16).replace('T', ' ') }}</div>
+      <div v-for="g in groupedNotifications" :key="g.label" class="notif-group">
+        <div class="notif-group__label">{{ g.label }}</div>
+        <div
+          v-for="n in g.items"
+          :key="n.id"
+          class="notification-item"
+          :class="{ unread: !n.is_read }"
+          @click="handleMarkRead(n)"
+        >
+          <el-icon
+            class="notification-icon"
+            :style="{ color: notifMeta(n.type).color, backgroundColor: notifMeta(n.type).color + '1a' }"
+          >
+            <component :is="notifMeta(n.type).icon" />
+          </el-icon>
+          <div class="notification-body">
+            <div class="notification-title">{{ n.title }}</div>
+            <div v-if="n.content" class="notification-content">{{ n.content }}</div>
+            <div class="notification-time">{{ n.created_at?.slice(0, 16).replace('T', ' ') }}</div>
+          </div>
+        </div>
       </div>
     </el-drawer>
   </el-container>
@@ -307,25 +354,56 @@ onMounted(() => {
 }
 .bottom-nav-item span { line-height: 1; }
 
+.notif-group {
+  margin-bottom: var(--sp-2);
+}
+.notif-group__label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  padding: var(--sp-2) var(--sp-1) var(--sp-1);
+}
 .notification-item {
-  padding: 12px;
-  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: var(--radius-md);
 }
 .notification-item:hover {
   background: #f5f7fa;
 }
 .notification-item.unread {
-  background: #ecf5ff;
+  background: var(--el-color-primary-light-9);
+}
+.notification-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  font-size: 18px;
+}
+.notification-body {
+  flex: 1;
+  min-width: 0;
 }
 .notification-title {
   font-size: 14px;
-  color: #303133;
+  color: var(--text-title);
+  margin-bottom: 2px;
+}
+.notification-content {
+  font-size: 12px;
+  color: var(--text-regular);
   margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 .notification-time {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-secondary);
 }
 </style>
