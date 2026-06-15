@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { listUsers } from '../api/tasks'
 import { ROLE_MAP } from '../utils/constants'
 import { ElMessage } from 'element-plus'
@@ -9,6 +9,15 @@ import EmptyState from '../components/EmptyState.vue'
 
 const users = ref([])
 const loading = ref(false)
+const page = ref(1)
+const pageSize = ref(10)
+const pagedUsers = computed(() =>
+  users.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value),
+)
+watch(() => users.value.length, (len) => {
+  const max = Math.max(1, Math.ceil(len / pageSize.value))
+  if (page.value > max) page.value = max
+})
 const showDialog = ref(false)
 const dialogTitle = ref('新增用户')
 const form = ref({ username: '', password: '', display_name: '', role: 'operations' })
@@ -105,7 +114,7 @@ onMounted(fetchUsers)
     </PageHeader>
 
     <el-skeleton v-if="loading" :rows="6" animated style="padding: 8px 0" />
-    <el-table v-else :data="users" border stripe>
+    <el-table v-else :data="pagedUsers" border stripe>
       <template #empty><EmptyState text="暂无用户" /></template>
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="username" label="用户名" width="120" />
@@ -134,6 +143,16 @@ onMounted(fetchUsers)
         </template>
       </el-table-column>
     </el-table>
+
+    <el-pagination
+      v-if="!loading && users.length > 0"
+      style="margin-top: 16px; justify-content: flex-end"
+      layout="total, prev, pager, next"
+      :total="users.length"
+      :page-size="pageSize"
+      :current-page="page"
+      @current-change="page = $event"
+    />
 
     <el-dialog v-model="showDialog" :title="dialogTitle" width="450px">
       <el-form label-width="80px">

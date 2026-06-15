@@ -13,7 +13,7 @@ const filters = ref({
   start_date: '',
   end_date: '',
   page: 1,
-  page_size: 50,
+  page_size: 20,
 })
 
 const ACTION_MAP = {
@@ -125,7 +125,7 @@ onMounted(fetchLogs)
           style="width: 140px"
         />
         <el-button type="primary" @click="handleSearch">查询</el-button>
-        <el-button @click="filters = { action: '', resource_type: '', start_date: '', end_date: '', page: 1, page_size: 50 }; fetchLogs()">重置</el-button>
+        <el-button @click="filters = { action: '', resource_type: '', start_date: '', end_date: '', page: 1, page_size: 20 }; fetchLogs()">重置</el-button>
       </div>
 
       <el-skeleton v-if="loading" :rows="6" animated style="padding: 8px 0" />
@@ -156,7 +156,7 @@ onMounted(fetchLogs)
       </el-table>
 
       <el-pagination
-        v-if="total > filters.page_size"
+        v-if="total > 0"
         style="margin-top: 16px; justify-content: flex-end"
         layout="total, prev, pager, next"
         :total="total"

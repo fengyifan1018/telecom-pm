@@ -1,7 +1,7 @@
 <script setup>
 import PageHeader from '../components/PageHeader.vue'
 import EmptyState from '../components/EmptyState.vue'
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { listCustomers, createCustomer, updateCustomer, deleteCustomer } from '../api/projects'
 import { useAuthStore } from '../stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -27,6 +27,16 @@ const filtered = computed(() => {
     (c.contact_name || '').toLowerCase().includes(q) ||
     (c.contact_phone || '').includes(q)
   )
+})
+
+const page = ref(1)
+const pageSize = ref(10)
+const pagedCustomers = computed(() =>
+  filtered.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value),
+)
+watch(() => filtered.value.length, (len) => {
+  const max = Math.max(1, Math.ceil(len / pageSize.value))
+  if (page.value > max) page.value = max
 })
 
 async function fetchCustomers() {
@@ -111,7 +121,7 @@ async function handleDelete(row) {
       </div>
 
       <el-skeleton v-if="loading" :rows="6" animated style="padding: 8px 0" />
-      <el-table v-else :data="filtered" border stripe>
+      <el-table v-else :data="pagedCustomers" border stripe>
         <template #empty>
           <EmptyState text="暂无客户">
             <el-button v-if="canEdit" type="primary" @click="openCreate">新增客户</el-button>
@@ -149,6 +159,16 @@ async function handleDelete(row) {
           </template>
         </el-table-column>
       </el-table>
+
+      <el-pagination
+        v-if="!loading && filtered.length > 0"
+        style="margin-top: 16px; justify-content: flex-end"
+        layout="total, prev, pager, next"
+        :total="filtered.length"
+        :page-size="pageSize"
+        :current-page="page"
+        @current-change="page = $event"
+      />
     </el-card>
 
     <el-dialog v-model="showDialog" :title="dialogTitle" width="440px">

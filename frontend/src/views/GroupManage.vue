@@ -1,7 +1,7 @@
 <script setup>
 import PageHeader from '../components/PageHeader.vue'
 import EmptyState from '../components/EmptyState.vue'
-import { ref, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { listGroups, createGroup, updateGroup, deleteGroup, listGroupMembers, addGroupMember, removeGroupMember } from '../api/groups'
 import { listUsers } from '../api/tasks'
 import { ROLE_MAP } from '../utils/constants'
@@ -9,6 +9,15 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 
 const groups = ref([])
 const loading = ref(false)
+const page = ref(1)
+const pageSize = ref(10)
+const pagedGroups = computed(() =>
+  groups.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value),
+)
+watch(() => groups.value.length, (len) => {
+  const max = Math.max(1, Math.ceil(len / pageSize.value))
+  if (page.value > max) page.value = max
+})
 const showDialog = ref(false)
 const dialogTitle = ref('新建用户组')
 const form = ref({ name: '', description: '' })
@@ -141,7 +150,7 @@ function availableUsers(groupId) {
     </PageHeader>
 
     <el-skeleton v-if="loading" :rows="6" animated style="padding: 8px 0" />
-    <el-table v-else :data="groups" border stripe row-key="id">
+    <el-table v-else :data="pagedGroups" border stripe row-key="id">
       <template #empty>
         <EmptyState text="暂无用户组">
           <el-button type="primary" @click="openCreate">新建用户组</el-button>
@@ -165,6 +174,16 @@ function availableUsers(groupId) {
         </template>
       </el-table-column>
     </el-table>
+
+    <el-pagination
+      v-if="!loading && groups.length > 0"
+      style="margin-top: 16px; justify-content: flex-end"
+      layout="total, prev, pager, next"
+      :total="groups.length"
+      :page-size="pageSize"
+      :current-page="page"
+      @current-change="page = $event"
+    />
 
     <!-- Member panel -->
     <div v-if="expandedGroupId" class="member-panel">
