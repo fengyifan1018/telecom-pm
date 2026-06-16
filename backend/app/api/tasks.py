@@ -35,17 +35,11 @@ async def list_tasks(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    scope = current_user.id if current_user.role in ("procurement", "field_engineer") else None
-    sales_scope_ids: list[int] | None = None
-    if current_user.role == "sales":
-        from sqlalchemy import select as _select
-        from app.models.project import Project as _Project
-        res = await db.execute(_select(_Project.id).where(_Project.sales_id == current_user.id))
-        sales_scope_ids = [r[0] for r in res.all()]
+    scope_assignee_id, scoped_project_ids = await task_service.compute_task_scope(db, current_user)
     items, total = await task_service.list_tasks(
         db, project_id, assignee_id, status, phase, page, page_size,
-        scope_assignee_id=scope,
-        sales_project_ids=sales_scope_ids,
+        scope_assignee_id=scope_assignee_id,
+        scoped_project_ids=scoped_project_ids,
         keyword=keyword,
         priority=priority,
         overdue=overdue,
@@ -60,16 +54,24 @@ async def list_tasks(
     }
 
 
+async def _get_visible_task(db: AsyncSession, task_id: int, current_user: User) -> Task:
+    """取任务并校验数据范围；不存在或越权一律 404（不泄露存在性）。"""
+    task = await db.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    scope_assignee_id, scoped_project_ids = await task_service.compute_task_scope(db, current_user)
+    if not task_service.is_task_visible(task, scope_assignee_id, scoped_project_ids):
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+
 @router.get("/{task_id}", response_model=TaskResponse)
 async def get_task(
     task_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    task = await db.get(Task, task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return task
+    return await _get_visible_task(db, task_id, current_user)
 
 
 @router.put("/{task_id}", response_model=TaskResponse)
@@ -79,9 +81,7 @@ async def update_task(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    task = await db.get(Task, task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = await _get_visible_task(db, task_id, current_user)
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(task, field, value)
     await db.commit()

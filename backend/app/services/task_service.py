@@ -17,6 +17,34 @@ SORT_FIELDS = {
     "created_at": Task.created_at,
 }
 
+# 任务可见性范围策略：
+# - 工程/执行角色按"指派给自己"看
+# - 销售/项目经理按"自己负责的项目"看
+# - 其余角色（admin、operations）不受限（operations 为只读全局可见）
+ASSIGNEE_SCOPED_ROLES = ("procurement", "field_engineer", "network_engineer")
+PROJECT_SCOPED_ROLES = ("sales", "pm")
+
+
+async def compute_task_scope(db: AsyncSession, user: User) -> tuple[int | None, list[int] | None]:
+    """返回 (scope_assignee_id, scoped_project_ids)，限定 user 可见的任务范围。
+    两者均为 None 表示不受限（admin / operations）。"""
+    if user.role in ASSIGNEE_SCOPED_ROLES:
+        return user.id, None
+    if user.role in PROJECT_SCOPED_ROLES:
+        col = Project.sales_id if user.role == "sales" else Project.pm_id
+        res = await db.execute(select(Project.id).where(col == user.id))
+        return None, [r[0] for r in res.all()]
+    return None, None
+
+
+def is_task_visible(task: Task, scope_assignee_id: int | None, scoped_project_ids: list[int] | None) -> bool:
+    """单任务可见性判断，与 compute_task_scope 的范围一致。"""
+    if scope_assignee_id is not None:
+        return task.assignee_id == scope_assignee_id
+    if scoped_project_ids is not None:
+        return task.project_id in scoped_project_ids
+    return True
+
 
 async def list_tasks(
     db: AsyncSession,
@@ -26,8 +54,8 @@ async def list_tasks(
     phase: str | None = None,
     page: int = 1,
     page_size: int = 50,
-    scope_assignee_id: int | None = None,  # scope: field/procurement only see own tasks
-    sales_project_ids: list[int] | None = None,  # scope: sales only see own projects' tasks
+    scope_assignee_id: int | None = None,  # scope: 工程/执行角色只看指派给自己的任务
+    scoped_project_ids: list[int] | None = None,  # scope: 销售/PM 只看自己负责项目的任务
     keyword: str | None = None,
     priority: int | None = None,
     overdue: bool = False,
@@ -48,9 +76,9 @@ async def list_tasks(
     count_query = select(func.count()).select_from(Task)
 
     conditions = []
-    if sales_project_ids is not None:
-        if sales_project_ids:
-            conditions.append(Task.project_id.in_(sales_project_ids))
+    if scoped_project_ids is not None:
+        if scoped_project_ids:
+            conditions.append(Task.project_id.in_(scoped_project_ids))
         else:
             conditions.append(Task.project_id == -1)  # no projects → no tasks
     if scope_assignee_id:

@@ -204,3 +204,81 @@ async def test_list_tasks_overdue(client: AsyncClient, seeded_db, db):
     items = resp.json()["items"]
     assert all(it["status"] not in ("done", "cancelled") for it in items)
     assert any(it["id"] == t.id for it in items)
+
+
+# ---- 任务数据范围（可见性）与单任务越权 ----
+
+async def _make_inited_project(client, name, pm_id, init_user):
+    """销售(1)创建项目，指定 pm，由 init_user 立项生成任务。返回 (project_id, tasks)。"""
+    resp = await client.post("/api/projects", json={
+        "name": name, "customer_id": 1, "product_type": "dia", "pm_id": pm_id,
+    }, headers={"X-User-Id": "1"})
+    pid = resp.json()["id"]
+    tasks = (await client.post(f"/api/projects/{pid}/init", headers={"X-User-Id": str(init_user)})).json()
+    return pid, tasks
+
+
+@pytest.mark.asyncio
+async def test_task_scope_pm_sees_only_own_projects(client: AsyncClient, seeded_db, db):
+    from app.models.user import User
+    from app.seed.seed_users import hash_password
+    pm_b = User(username="pm02", hashed_password=hash_password("123456"),
+                display_name="王经理(项目经理)", role="pm")
+    db.add(pm_b)
+    await db.commit()
+    await db.refresh(pm_b)
+
+    p1, _ = await _make_inited_project(client, "PM-A项目", pm_id=2, init_user=2)
+    p2, _ = await _make_inited_project(client, "PM-B项目", pm_id=pm_b.id, init_user=pm_b.id)
+
+    # pm01 只看到自己项目 P1 的任务
+    resp = await client.get("/api/tasks?page_size=200", headers={"X-User-Id": "2"})
+    items = resp.json()["items"]
+    assert resp.json()["total"] == 26
+    assert items and all(it["project_id"] == p1 for it in items)
+
+    # pmB 只看到自己项目 P2 的任务
+    resp = await client.get("/api/tasks?page_size=200", headers={"X-User-Id": str(pm_b.id)})
+    items = resp.json()["items"]
+    assert resp.json()["total"] == 26
+    assert items and all(it["project_id"] == p2 for it in items)
+
+
+@pytest.mark.asyncio
+async def test_task_scope_engineer_sees_only_assigned(client: AsyncClient, seeded_db):
+    pid, tasks = await _make_inited_project(client, "工程师范围项目", pm_id=2, init_user=2)
+    tid = tasks[0]["id"]
+    # 指派给 net01 (id 5, network_engineer)
+    resp = await client.put(f"/api/tasks/{tid}/assign", json={"assignee_id": 5}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 200
+    # network_engineer 只看到指派给自己的那 1 个任务
+    resp = await client.get("/api/tasks?page_size=200", headers={"X-User-Id": "5"})
+    assert resp.json()["total"] == 1
+    assert resp.json()["items"][0]["id"] == tid
+
+
+@pytest.mark.asyncio
+async def test_task_scope_operations_sees_all(client: AsyncClient, seeded_db):
+    pid, _ = await _make_inited_project(client, "运营可见项目", pm_id=2, init_user=2)
+    # operations (id 3) 全部可见（只读角色）
+    resp = await client.get("/api/tasks?page_size=200", headers={"X-User-Id": "3"})
+    assert resp.json()["total"] == 26
+
+
+@pytest.mark.asyncio
+async def test_single_task_access_scoped(client: AsyncClient, seeded_db):
+    pid, tasks = await _make_inited_project(client, "越权校验项目", pm_id=2, init_user=2)
+    tid, other = tasks[0]["id"], tasks[1]["id"]
+
+    # net01 未被指派 → 看不到（404，不泄露存在性）
+    resp = await client.get(f"/api/tasks/{tid}", headers={"X-User-Id": "5"})
+    assert resp.status_code == 404
+
+    # 指派后可见
+    await client.put(f"/api/tasks/{tid}/assign", json={"assignee_id": 5}, headers={"X-User-Id": "2"})
+    resp = await client.get(f"/api/tasks/{tid}", headers={"X-User-Id": "5"})
+    assert resp.status_code == 200
+
+    # 未指派的任务不可通过 PUT 越权修改
+    resp = await client.put(f"/api/tasks/{other}", json={"priority": 1}, headers={"X-User-Id": "5"})
+    assert resp.status_code == 404
