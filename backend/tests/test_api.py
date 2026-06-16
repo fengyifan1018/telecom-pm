@@ -131,3 +131,76 @@ async def test_dashboard(client: AsyncClient, seeded_db):
     resp = await client.get("/api/dashboard/my-workbench", headers=headers)
     assert resp.status_code == 200
     assert "total" in resp.json()
+
+
+@pytest.mark.asyncio
+async def test_list_tasks_filters_and_sort(client: AsyncClient, seeded_db):
+    headers = {"X-User-Id": "2"}  # pm01
+    resp = await client.post("/api/projects", json={
+        "name": "列表筛选测试", "customer_id": 1, "product_type": "dia", "pm_id": 2,
+    }, headers=headers)
+    project_id = resp.json()["id"]
+    resp = await client.post(f"/api/projects/{project_id}/init", headers=headers)
+    tasks = resp.json()
+    assert len(tasks) == 26
+
+    # project_name 已回传
+    resp = await client.get(f"/api/tasks?project_id={project_id}", headers=headers)
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    assert items and items[0]["project_name"] == "列表筛选测试"
+
+    # keyword 命中标题
+    sample_title = tasks[0]["title"]
+    kw = sample_title[:2]
+    resp = await client.get(f"/api/tasks?project_id={project_id}&keyword={kw}", headers=headers)
+    assert resp.json()["total"] >= 1
+    assert all(kw in t["title"] or kw in t["task_no"] for t in resp.json()["items"])
+
+    # keyword 命中编号
+    no = tasks[0]["task_no"]
+    resp = await client.get(f"/api/tasks?project_id={project_id}&keyword={no}", headers=headers)
+    assert resp.json()["total"] == 1
+
+    # 多状态：active + pending
+    resp = await client.get(
+        f"/api/tasks?project_id={project_id}&status=active,pending", headers=headers)
+    assert resp.json()["total"] == 26
+    resp = await client.get(
+        f"/api/tasks?project_id={project_id}&status=active", headers=headers)
+    active_total = resp.json()["total"]
+    assert 0 < active_total < 26
+
+    # 排序：created_at desc
+    resp = await client.get(
+        f"/api/tasks?project_id={project_id}&sort=created_at&order=desc", headers=headers)
+    assert resp.json()["total"] == 26
+
+    # 非法 sort 回退默认，不报错
+    resp = await client.get(
+        f"/api/tasks?project_id={project_id}&sort=bogus&order=xyz", headers=headers)
+    assert resp.json()["total"] == 26
+
+
+@pytest.mark.asyncio
+async def test_list_tasks_overdue(client: AsyncClient, seeded_db, db):
+    from datetime import date, timedelta
+    from sqlalchemy import select
+    from app.models.task import Task
+    headers = {"X-User-Id": "2"}
+    resp = await client.post("/api/projects", json={
+        "name": "超期测试", "customer_id": 1, "product_type": "dia", "pm_id": 2,
+    }, headers=headers)
+    project_id = resp.json()["id"]
+    await client.post(f"/api/projects/{project_id}/init", headers=headers)
+
+    res = await db.execute(select(Task).where(Task.project_id == project_id))
+    t = res.scalars().first()
+    t.planned_end = date.today() - timedelta(days=1)
+    await db.commit()
+
+    resp = await client.get(f"/api/tasks?project_id={project_id}&overdue=true", headers=headers)
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    assert all(it["status"] not in ("done", "cancelled") for it in items)
+    assert any(it["id"] == t.id for it in items)

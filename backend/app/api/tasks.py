@@ -25,6 +25,11 @@ async def list_tasks(
     assignee_id: int | None = None,
     status: str | None = None,
     phase: str | None = None,
+    keyword: str | None = None,
+    priority: int | None = None,
+    overdue: bool = False,
+    sort: str | None = None,
+    order: str = "asc",
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
@@ -41,6 +46,11 @@ async def list_tasks(
         db, project_id, assignee_id, status, phase, page, page_size,
         scope_assignee_id=scope,
         sales_project_ids=sales_scope_ids,
+        keyword=keyword,
+        priority=priority,
+        overdue=overdue,
+        sort=sort,
+        order=order,
     )
     return {
         "total": total,

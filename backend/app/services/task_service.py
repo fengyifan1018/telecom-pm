@@ -1,12 +1,21 @@
 import re
+from datetime import date
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.task import Task, TaskTransition
+from app.models.project import Project
 from app.models.comment import Comment
 from app.models.user import User
 from app.services.notification_service import notify
+
+
+SORT_FIELDS = {
+    "planned_end": Task.planned_end,
+    "priority": Task.priority,
+    "created_at": Task.created_at,
+}
 
 
 async def list_tasks(
@@ -19,10 +28,22 @@ async def list_tasks(
     page_size: int = 50,
     scope_assignee_id: int | None = None,  # scope: field/procurement only see own tasks
     sales_project_ids: list[int] | None = None,  # scope: sales only see own projects' tasks
+    keyword: str | None = None,
+    priority: int | None = None,
+    overdue: bool = False,
+    sort: str | None = None,
+    order: str = "asc",
 ) -> tuple[list[dict], int]:
     assignee = User.__table__.alias("assignee")
-    query = select(Task, assignee.c.display_name.label("assignee_name")).outerjoin(
-        assignee, Task.assignee_id == assignee.c.id
+    project = Project.__table__.alias("project")
+    query = (
+        select(
+            Task,
+            assignee.c.display_name.label("assignee_name"),
+            project.c.name.label("project_name"),
+        )
+        .outerjoin(assignee, Task.assignee_id == assignee.c.id)
+        .outerjoin(project, Task.project_id == project.c.id)
     )
     count_query = select(func.count()).select_from(Task)
 
@@ -39,22 +60,42 @@ async def list_tasks(
     if project_id:
         conditions.append(Task.project_id == project_id)
     if status:
-        conditions.append(Task.status == status)
+        statuses = [s for s in status.split(",") if s]
+        if len(statuses) > 1:
+            conditions.append(Task.status.in_(statuses))
+        elif statuses:
+            conditions.append(Task.status == statuses[0])
     if phase:
         conditions.append(Task.phase == phase)
+    if keyword:
+        kw = f"%{keyword}%"
+        conditions.append(or_(Task.title.like(kw), Task.task_no.like(kw)))
+    if priority:
+        conditions.append(Task.priority == priority)
+    if overdue:
+        conditions.append(Task.planned_end < date.today())
+        conditions.append(Task.status.notin_(["done", "cancelled"]))
 
     for cond in conditions:
         query = query.where(cond)
         count_query = count_query.where(cond)
 
     total = (await db.execute(count_query)).scalar() or 0
-    query = query.order_by(Task.id).offset((page - 1) * page_size).limit(page_size)
+
+    sort_col = SORT_FIELDS.get(sort)
+    if sort_col is not None:
+        query = query.order_by(sort_col.desc() if order == "desc" else sort_col.asc())
+    else:
+        query = query.order_by(Task.id)
+    query = query.offset((page - 1) * page_size).limit(page_size)
+
     result = await db.execute(query)
     items = []
-    for task, assignee_name in result.all():
+    for task, assignee_name, project_name in result.all():
         d = {
             "id": task.id,
             "project_id": task.project_id,
+            "project_name": project_name,
             "task_no": task.task_no,
             "title": task.title,
             "phase": task.phase,

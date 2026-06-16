@@ -1,5 +1,8 @@
 import asyncio
+import os
 from typing import AsyncGenerator
+
+os.environ["DEBUG"] = "true"
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -12,6 +15,8 @@ from app.models import *  # noqa
 from app.seed.seed_users import get_seed_users
 from app.seed.seed_templates import get_dia_template
 from app.models.project import Customer
+from app.api.permissions import seed_default_permissions
+from app.permissions import invalidate_perm_cache
 
 TEST_DB_URL = "sqlite+aiosqlite:///./test.db"
 test_engine = create_async_engine(TEST_DB_URL, echo=False)
@@ -55,6 +60,8 @@ async def seeded_db(db: AsyncSession) -> AsyncSession:
     db.add(get_dia_template())
     db.add(Customer(name="测试客户", contact_name="张三", contact_phone="13800000000"))
     await db.commit()
+    invalidate_perm_cache()
+    await seed_default_permissions(db)
     return db
 
 
