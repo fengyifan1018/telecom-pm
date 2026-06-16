@@ -1,10 +1,11 @@
 <script setup>
 import PageHeader from '../components/PageHeader.vue'
 import EmptyState from '../components/EmptyState.vue'
+import TaskListView from '../components/TaskListView.vue'
 import { todayStr } from '../utils/format'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { listTasks, startTask, submitTask, approveTask } from '../api/tasks'
+import { listTasks, startTask, submitTask, approveTask, listUsers } from '../api/tasks'
 import { listProjects } from '../api/projects'
 import { STATUS_MAP, PHASE_MAP } from '../utils/constants'
 import { ElMessage } from 'element-plus'
@@ -12,9 +13,33 @@ import { ElMessage } from 'element-plus'
 const router = useRouter()
 const tasks = ref([])
 const projects = ref([])
+const users = ref([])
 const loading = ref(true)
+
+// 视图模式（持久化）
+const viewMode = ref(localStorage.getItem('task-view-mode') || 'kanban')
+watch(viewMode, (v) => localStorage.setItem('task-view-mode', v))
+
+// 共享筛选
 const filterProject = ref('')
 const filterPhase = ref('')
+const filterAssignee = ref('')
+const filterKeyword = ref('')
+const filterPriority = ref('')
+const filterOverdue = ref(false)
+const filterStatus = ref([]) // 仅列表视图用
+
+// 传给列表组件的筛选对象
+const listFilters = computed(() => ({
+  project_id: filterProject.value || undefined,
+  phase: filterPhase.value || undefined,
+  assignee_id: filterAssignee.value || undefined,
+  keyword: filterKeyword.value || undefined,
+  priority: filterPriority.value || undefined,
+  overdue: filterOverdue.value || undefined,
+  status: filterStatus.value,
+}))
+
 const draggingTask = ref(null)
 const dragOverColumn = ref(null)
 
@@ -26,54 +51,63 @@ const columns = [
   { key: '_exception', label: '异常', type: 'danger' },
 ]
 
-// Only allow forward transitions
 const VALID_TRANSITIONS = {
   pending: { target: 'active', api: startTask },
   active: { target: 'review', api: (id) => submitTask(id) },
   review: { target: 'done', api: approveTask },
 }
 
+const PRIORITY_OPTIONS = [
+  { value: 1, label: '最高' }, { value: 2, label: '高' }, { value: 3, label: '中' },
+  { value: 4, label: '低' }, { value: 5, label: '最低' },
+]
+const STATUS_OPTIONS = ['pending', 'active', 'review', 'done', 'paused', 'blocked', 'cancelled']
+
 const availablePhases = computed(() => {
   const phases = [...new Set(tasks.value.map(t => t.phase))]
   return phases.map(p => ({ key: p, label: PHASE_MAP[p] || p }))
 })
 
-const filteredTasks = computed(() => {
-  let result = tasks.value
-  if (filterProject.value) result = result.filter((t) => t.project_id === filterProject.value)
-  if (filterPhase.value) result = result.filter((t) => t.phase === filterPhase.value)
-  return result
-})
-
-const kanbanData = computed(() => {
-  return columns.map((col) => ({
-    ...col,
-    tasks: col.key === '_exception'
-      ? filteredTasks.value.filter((t) => ['blocked', 'paused'].includes(t.status))
-      : filteredTasks.value.filter((t) => t.status === col.key),
-  }))
-})
-
-async function fetchTasks() {
-  const [tRes, pRes] = await Promise.all([
-    listTasks({ page_size: 200 }),
-    listProjects({ page_size: 100 }),
-  ])
-  tasks.value = tRes.data.items
-  projects.value = pRes.data.items
-}
-
-onMounted(async () => {
+// 看板取数：服务端筛选（不传 status，列本身即状态）
+async function fetchKanban() {
+  loading.value = true
   try {
-    await fetchTasks()
+    const params = { page_size: 200 }
+    if (filterProject.value) params.project_id = filterProject.value
+    if (filterPhase.value) params.phase = filterPhase.value
+    if (filterAssignee.value) params.assignee_id = filterAssignee.value
+    if (filterKeyword.value) params.keyword = filterKeyword.value
+    if (filterPriority.value) params.priority = filterPriority.value
+    if (filterOverdue.value) params.overdue = true
+    const tRes = await listTasks(params)
+    tasks.value = tRes.data.items
   } finally {
     loading.value = false
   }
+}
+
+// 仅看板模式下，筛选变化时重新取数
+watch([filterProject, filterPhase, filterAssignee, filterKeyword, filterPriority, filterOverdue], () => {
+  if (viewMode.value === 'kanban') fetchKanban()
+})
+watch(viewMode, (v) => { if (v === 'kanban') fetchKanban() })
+
+const kanbanData = computed(() => columns.map((col) => ({
+  ...col,
+  tasks: col.key === '_exception'
+    ? tasks.value.filter((t) => ['blocked', 'paused'].includes(t.status))
+    : tasks.value.filter((t) => t.status === col.key),
+})))
+
+onMounted(async () => {
+  const [pRes, uRes] = await Promise.all([listProjects({ page_size: 100 }), listUsers()])
+  projects.value = pRes.data.items
+  users.value = uRes.data
+  if (viewMode.value === 'kanban') await fetchKanban()
+  else loading.value = false
 })
 
-function goProject(task) {
-  router.push(`/projects/${task.project_id}`)
-}
+function goProject(task) { router.push(`/projects/${task.project_id}`) }
 
 function getProjectName(projectId) {
   const p = projects.value.find((p) => p.id === projectId)
@@ -85,12 +119,7 @@ function onDragStart(event, task) {
   draggingTask.value = task
   event.dataTransfer.effectAllowed = 'move'
 }
-
-function onDragEnd() {
-  draggingTask.value = null
-  dragOverColumn.value = null
-}
-
+function onDragEnd() { draggingTask.value = null; dragOverColumn.value = null }
 function onDragOver(event, colKey) {
   if (colKey === '_exception') return
   const task = draggingTask.value
@@ -102,45 +131,49 @@ function onDragOver(event, colKey) {
     dragOverColumn.value = colKey
   }
 }
-
-function onDragLeave(colKey) {
-  if (dragOverColumn.value === colKey) dragOverColumn.value = null
-}
-
+function onDragLeave(colKey) { if (dragOverColumn.value === colKey) dragOverColumn.value = null }
 async function onDrop(event, colKey) {
   event.preventDefault()
   dragOverColumn.value = null
   const task = draggingTask.value
   draggingTask.value = null
   if (!task) return
-
   const transition = VALID_TRANSITIONS[task.status]
   if (!transition || transition.target !== colKey) return
-
   try {
     await transition.api(task.id)
-    // optimistic update
     task.status = colKey
     ElMessage.success('状态已更新')
   } catch (e) {
-    // 错误提示由全局拦截器统一处理
-    await fetchTasks()
+    await fetchKanban()
   }
 }
 </script>
 
 <template>
   <div v-loading="loading">
-    <PageHeader title="任务看板">
-      <el-select v-model="filterProject" placeholder="筛选项目" clearable style="width: 180px" filterable>
+    <PageHeader title="任务">
+      <el-segmented v-model="viewMode" :options="[{ label: '看板', value: 'kanban' }, { label: '列表', value: 'list' }]" />
+      <el-input v-model="filterKeyword" placeholder="搜索标题/编号" clearable style="width: 160px" />
+      <el-select v-model="filterProject" placeholder="项目" clearable style="width: 150px" filterable>
         <el-option v-for="p in projects" :key="p.id" :label="p.name" :value="p.id" />
       </el-select>
-      <el-select v-model="filterPhase" placeholder="筛选阶段" clearable style="width: 140px">
+      <el-select v-model="filterPhase" placeholder="阶段" clearable style="width: 120px">
         <el-option v-for="p in availablePhases" :key="p.key" :label="p.label" :value="p.key" />
       </el-select>
+      <el-select v-model="filterAssignee" placeholder="负责人" clearable filterable style="width: 130px">
+        <el-option v-for="u in users" :key="u.id" :label="u.display_name" :value="u.id" />
+      </el-select>
+      <el-select v-model="filterPriority" placeholder="优先级" clearable style="width: 100px">
+        <el-option v-for="o in PRIORITY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+      </el-select>
+      <el-select v-if="viewMode === 'list'" v-model="filterStatus" placeholder="状态" multiple collapse-tags clearable style="width: 160px">
+        <el-option v-for="s in STATUS_OPTIONS" :key="s" :label="STATUS_MAP[s]?.label || s" :value="s" />
+      </el-select>
+      <el-checkbox v-model="filterOverdue">仅超期</el-checkbox>
     </PageHeader>
 
-    <div class="kanban-board">
+    <div v-if="viewMode === 'kanban'" class="kanban-board">
       <div
         v-for="col in kanbanData"
         :key="col.key"
@@ -181,6 +214,7 @@ async function onDrop(event, colKey) {
         </div>
       </div>
     </div>
+    <TaskListView v-else :filters="listFilters" />
   </div>
 </template>
 

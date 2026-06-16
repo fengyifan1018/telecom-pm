@@ -22,7 +22,7 @@ const auth = useAuthStore()
 const menus = [
   { path: '/', label: '工作台', icon: HomeFilled },
   { path: '/projects', label: '项目管理', icon: Folder },
-  { path: '/kanban', label: '任务看板', icon: Grid },
+  { path: '/kanban', label: '任务', icon: Grid },
   { path: '/reports', label: '报表中心', icon: Histogram, perm: 'menu.reports' },
   { path: '/templates', label: '模板管理', icon: Document, perm: 'menu.templates' },
   { path: '/customers', label: '客户管理', icon: OfficeBuilding, perm: 'menu.customers' },
