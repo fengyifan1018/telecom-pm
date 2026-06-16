@@ -60,3 +60,11 @@ export const ROLE_MAP = {
   field_engineer: '现场实施',
   admin: '管理员',
 }
+
+export const PRIORITY_MAP = {
+  1: { label: '最高', type: 'danger' },
+  2: { label: '高', type: 'warning' },
+  3: { label: '中', type: 'primary' },
+  4: { label: '低', type: 'info' },
+  5: { label: '最低', type: 'info' },
+}
