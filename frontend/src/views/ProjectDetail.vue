@@ -320,7 +320,7 @@ async function handleRejectCR() {
               <el-tag :type="STATUS_MAP[project.status]?.type" size="small">{{ STATUS_MAP[project.status]?.label }}</el-tag>
               <el-tag type="info" size="small">{{ PRODUCT_TYPE_MAP[project.product_type] }}</el-tag>
             </el-space>
-            <div style="margin-top: 8px; color: #909399; font-size: 13px; display: flex; gap: 24px; flex-wrap: wrap">
+            <div style="margin-top: 8px; color: var(--el-text-color-secondary); font-size: 13px; display: flex; gap: 24px; flex-wrap: wrap">
               <span v-if="project.customer_name">客户：{{ project.customer_name }}</span>
               <span v-if="project.sales_name">销售：{{ project.sales_name }}</span>
               <span v-if="project.pm_name">项目经理：{{ project.pm_name }}</span>
@@ -361,7 +361,7 @@ async function handleRejectCR() {
       <!-- Project Details -->
       <el-card v-if="project.description" style="margin-bottom: 16px">
         <template #header>项目详情</template>
-        <div style="white-space: pre-wrap; font-size: 14px; color: #303133; line-height: 1.7">{{ project.description }}</div>
+        <div style="white-space: pre-wrap; font-size: 14px; color: var(--el-text-color-primary); line-height: 1.7">{{ project.description }}</div>
       </el-card>
 
       <!-- Phase Progress -->
@@ -379,7 +379,7 @@ async function handleRejectCR() {
           <el-tab-pane label="任务列表" name="list">
             <div v-for="group in groupedTasks" :key="group.phase" style="margin-bottom: 20px">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px">
-                <h4 style="margin: 0; color: #303133">{{ group.name }}</h4>
+                <h4 style="margin: 0; color: var(--el-text-color-primary)">{{ group.name }}</h4>
                 <el-upload
                   :auto-upload="false"
                   :show-file-list="false"
@@ -390,9 +390,9 @@ async function handleRejectCR() {
                 </el-upload>
               </div>
               <div v-if="deliverablesByPhase[group.phase]?.length" style="margin-bottom: 8px; padding: 6px 8px; background: #f0f9eb; border-radius: 4px; font-size: 12px">
-                <span style="color: #67c23a; font-weight: bold">交付物：</span>
+                <span style="color: var(--el-color-success); font-weight: bold">交付物：</span>
                 <span v-for="d in deliverablesByPhase[group.phase]" :key="d.id" style="margin-left: 8px">
-                  <a href="#" @click.prevent="handleDownloadDeliverable(d)" style="color: #409eff; text-decoration: none">{{ d.title }}</a>
+                  <a href="#" @click.prevent="handleDownloadDeliverable(d)" style="color: var(--el-color-primary); text-decoration: none">{{ d.title }}</a>
                   <el-button size="small" type="danger" text @click.stop="handleDeleteDeliverable(d)" style="padding: 0 4px; margin-left: 2px">×</el-button>
                 </span>
               </div>
@@ -406,7 +406,7 @@ async function handleRejectCR() {
                 <el-table-column label="负责人" width="90">
                   <template #default="{ row }">
                     <span v-if="row.assignee_name">{{ row.assignee_name }}</span>
-                    <span v-else style="color: #c0c4cc">-</span>
+                    <span v-else style="color: var(--el-text-color-placeholder)">-</span>
                   </template>
                 </el-table-column>
                 <el-table-column prop="planned_end" label="截止" width="110" />
@@ -442,7 +442,7 @@ async function handleRejectCR() {
                     <el-button size="small" type="success" @click="handleApproveCR(row)">批准</el-button>
                     <el-button size="small" type="danger" @click="openRejectCR(row)">拒绝</el-button>
                   </template>
-                  <span v-else-if="row.reject_reason" style="color: #909399; font-size: 12px">{{ row.reject_reason }}</span>
+                  <span v-else-if="row.reject_reason" style="color: var(--el-text-color-secondary); font-size: 12px">{{ row.reject_reason }}</span>
                 </template>
               </el-table-column>
             </el-table>

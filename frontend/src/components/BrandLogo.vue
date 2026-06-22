@@ -2,7 +2,7 @@
 defineProps({
   height: { type: Number, default: 30 },
   text: { type: String, default: '' },
-  textColor: { type: String, default: '#1f2329' },
+  textColor: { type: String, default: 'var(--text-title)' },
 })
 </script>
 

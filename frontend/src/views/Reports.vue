@@ -45,9 +45,9 @@ onMounted(async () => {
 })
 
 const STATUS_LABEL = { pending: '待处理', active: '进行中', review: '待审核', done: '已完成', paused: '已暂停', cancelled: '已取消', rework: '返工' }
-const STATUS_COLOR = { pending: '#909399', active: '#409eff', review: '#e6a23c', done: '#67c23a', paused: '#c8c9cc', cancelled: '#c8c9cc', rework: '#f56c6c' }
+const STATUS_COLOR = { pending: '#86909c', active: '#1890ff', review: '#d97706', done: '#16a34a', paused: '#c3c8ce', cancelled: '#c3c8ce', rework: '#dc2626' }
 const PRODUCT_LABEL = { dia: 'DIA专线', transmission: '传输', dark_fiber: '裸纤', sdwan: 'SD-WAN' }
-const PRODUCT_COLOR = { dia: '#409eff', transmission: '#67c23a', dark_fiber: '#e6a23c', sdwan: '#f56c6c' }
+const PRODUCT_COLOR = { dia: '#1890ff', transmission: '#16a34a', dark_fiber: '#d97706', sdwan: '#dc2626' }
 
 const taskPieOption = computed(() => ({
   tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
@@ -89,10 +89,10 @@ const phaseBarOption = computed(() => {
     xAxis: { type: 'category', data: phases, axisLabel: { rotate: 30, fontSize: 11 } },
     yAxis: { type: 'value', minInterval: 1 },
     series: [
-      { name: '进行中', type: 'bar', stack: 'total', data: entries.map(([, v]) => v.active || 0), itemStyle: { color: '#409eff' } },
-      { name: '待审核', type: 'bar', stack: 'total', data: entries.map(([, v]) => v.review || 0), itemStyle: { color: '#e6a23c' } },
-      { name: '已完成', type: 'bar', stack: 'total', data: entries.map(([, v]) => v.done || 0), itemStyle: { color: '#67c23a' } },
-      { name: '待处理', type: 'bar', stack: 'total', data: entries.map(([, v]) => v.pending || 0), itemStyle: { color: '#c8c9cc' } },
+      { name: '进行中', type: 'bar', stack: 'total', data: entries.map(([, v]) => v.active || 0), itemStyle: { color: '#1890ff' } },
+      { name: '待审核', type: 'bar', stack: 'total', data: entries.map(([, v]) => v.review || 0), itemStyle: { color: '#d97706' } },
+      { name: '已完成', type: 'bar', stack: 'total', data: entries.map(([, v]) => v.done || 0), itemStyle: { color: '#16a34a' } },
+      { name: '待处理', type: 'bar', stack: 'total', data: entries.map(([, v]) => v.pending || 0), itemStyle: { color: '#c3c8ce' } },
     ],
   }
 })
@@ -106,7 +106,7 @@ const deliveryCycleOption = computed(() => ({
     type: 'bar',
     data: deliveryCycle.value.map(d => ({
       value: d.avg_days,
-      itemStyle: { color: d.avg_days > 7 ? '#f56c6c' : d.avg_days > 3 ? '#e6a23c' : '#67c23a' },
+      itemStyle: { color: d.avg_days > 7 ? '#dc2626' : d.avg_days > 3 ? '#d97706' : '#16a34a' },
     })),
     label: { show: true, position: 'right', formatter: (p) => `${p.value}天` },
   }],
@@ -122,8 +122,8 @@ const returnRateOption = computed(() => ({
     { type: 'value', name: '平均次数' },
   ],
   series: [
-    { name: '退回率', type: 'bar', yAxisIndex: 0, data: returnRate.value.map(d => d.rate), itemStyle: { color: '#f56c6c' } },
-    { name: '平均退回次数', type: 'line', yAxisIndex: 1, data: returnRate.value.map(d => d.avg_rework), itemStyle: { color: '#e6a23c' } },
+    { name: '退回率', type: 'bar', yAxisIndex: 0, data: returnRate.value.map(d => d.rate), itemStyle: { color: '#dc2626' } },
+    { name: '平均退回次数', type: 'line', yAxisIndex: 1, data: returnRate.value.map(d => d.avg_rework), itemStyle: { color: '#d97706' } },
   ],
 }))
 
@@ -136,7 +136,7 @@ const workloadBarOption = computed(() => ({
     type: 'bar',
     data: workload.value.map(u => ({
       value: u.active_tasks,
-      itemStyle: { color: u.active_tasks > 4 ? '#f56c6c' : u.active_tasks > 2 ? '#e6a23c' : '#67c23a' },
+      itemStyle: { color: u.active_tasks > 4 ? '#dc2626' : u.active_tasks > 2 ? '#d97706' : '#16a34a' },
     })),
     label: { show: true, position: 'right' },
   }],
@@ -152,7 +152,7 @@ const workloadBarOption = computed(() => ({
       <el-col :span="6">
         <el-card shadow="hover">
           <div class="stat-card">
-            <div class="stat-number" style="color: #909399">{{ overview.projects.draft }}</div>
+            <div class="stat-number" style="color: var(--el-text-color-secondary)">{{ overview.projects.draft }}</div>
             <div class="stat-label">草稿项目</div>
           </div>
         </el-card>
@@ -160,7 +160,7 @@ const workloadBarOption = computed(() => ({
       <el-col :span="6">
         <el-card shadow="hover">
           <div class="stat-card">
-            <div class="stat-number" style="color: #409eff">{{ overview.projects.active }}</div>
+            <div class="stat-number" style="color: var(--el-color-primary)">{{ overview.projects.active }}</div>
             <div class="stat-label">进行中项目</div>
           </div>
         </el-card>
@@ -168,7 +168,7 @@ const workloadBarOption = computed(() => ({
       <el-col :span="6">
         <el-card shadow="hover">
           <div class="stat-card">
-            <div class="stat-number" style="color: #67c23a">{{ overview.projects.completed }}</div>
+            <div class="stat-number" style="color: var(--el-color-success)">{{ overview.projects.completed }}</div>
             <div class="stat-label">已完成项目</div>
           </div>
         </el-card>
@@ -176,7 +176,7 @@ const workloadBarOption = computed(() => ({
       <el-col :span="6">
         <el-card shadow="hover">
           <div class="stat-card">
-            <div class="stat-number" style="color: #f56c6c">{{ overview.overdue_tasks }}</div>
+            <div class="stat-number" style="color: var(--el-color-danger)">{{ overview.overdue_tasks }}</div>
             <div class="stat-label">超期任务</div>
           </div>
         </el-card>
@@ -210,14 +210,14 @@ const workloadBarOption = computed(() => ({
       <el-col :span="12">
         <el-card>
           <template #header>各阶段平均停留时长（天）</template>
-          <div v-if="deliveryCycle.length === 0" style="text-align: center; color: #909399; padding: 40px 0">暂无已完成任务数据</div>
+          <div v-if="deliveryCycle.length === 0" style="text-align: center; color: var(--el-text-color-secondary); padding: 40px 0">暂无已完成任务数据</div>
           <v-chart v-else :option="deliveryCycleOption" :style="{ height: Math.max(deliveryCycle.length * 36 + 60, 160) + 'px' }" autoresize />
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card>
           <template #header>各阶段退回率</template>
-          <div v-if="returnRate.length === 0" style="text-align: center; color: #909399; padding: 40px 0">暂无数据</div>
+          <div v-if="returnRate.length === 0" style="text-align: center; color: var(--el-text-color-secondary); padding: 40px 0">暂无数据</div>
           <v-chart v-else :option="returnRateOption" style="height: 260px" autoresize />
         </el-card>
       </el-col>
@@ -228,7 +228,7 @@ const workloadBarOption = computed(() => ({
       <el-col :span="10">
         <el-card>
           <template #header>人员负荷 (进行中+待审核)</template>
-          <div v-if="workload.length === 0" style="text-align: center; color: #909399; padding: 40px 0">
+          <div v-if="workload.length === 0" style="text-align: center; color: var(--el-text-color-secondary); padding: 40px 0">
             暂无数据
           </div>
           <v-chart v-else :option="workloadBarOption" :style="{ height: Math.max(workload.length * 40 + 40, 120) + 'px' }" autoresize />
@@ -254,11 +254,11 @@ const workloadBarOption = computed(() => ({
               </template>
             </el-table-column>
             <el-table-column prop="active" label="进行中" width="65" align="center">
-              <template #default="{ row }"><span style="color: #409eff">{{ row.active }}</span></template>
+              <template #default="{ row }"><span style="color: var(--el-color-primary)">{{ row.active }}</span></template>
             </el-table-column>
             <el-table-column prop="overdue" label="超期" width="55" align="center">
               <template #default="{ row }">
-                <span :style="{ color: row.overdue ? '#f56c6c' : '#909399', fontWeight: row.overdue ? 'bold' : 'normal' }">{{ row.overdue }}</span>
+                <span :style="{ color: row.overdue ? 'var(--el-color-danger)' : 'var(--el-text-color-secondary)', fontWeight: row.overdue ? 'bold' : 'normal' }">{{ row.overdue }}</span>
               </template>
             </el-table-column>
           </el-table>
@@ -271,5 +271,5 @@ const workloadBarOption = computed(() => ({
 <style scoped>
 .stat-card { text-align: center; padding: 8px 0; }
 .stat-number { font-size: 32px; font-weight: bold; }
-.stat-label { font-size: 14px; color: #909399; margin-top: 4px; }
+.stat-label { font-size: 14px; color: var(--el-text-color-secondary); margin-top: 4px; }
 </style>

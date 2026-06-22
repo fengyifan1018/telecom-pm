@@ -150,7 +150,7 @@ async function handleDelete(row, e) {
             <span v-if="row.planned_start || row.planned_end">
               {{ row.planned_start || '?' }} ~ {{ row.planned_end || '?' }}
             </span>
-            <span v-else style="color: #c0c4cc">-</span>
+            <span v-else style="color: var(--el-text-color-placeholder)">-</span>
           </template>
         </el-table-column>
         <el-table-column prop="status" label="状态" width="90">

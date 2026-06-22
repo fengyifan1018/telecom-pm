@@ -62,7 +62,7 @@ async function handleReset() {
     </PageHeader>
 
     <el-card v-loading="loading">
-      <div style="font-size: 13px; color: #909399; margin-bottom: 16px">
+      <div style="font-size: 13px; color: var(--el-text-color-secondary); margin-bottom: 16px">
         勾选表示该角色拥有此操作权限。修改后立即生效。
       </div>
 

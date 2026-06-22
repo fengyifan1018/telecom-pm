@@ -332,7 +332,7 @@ function close() {
                 @click="handleAssign"
               >指派</el-button>
             </div>
-            <div v-if="workloadWarning" style="color: #e6a23c; font-size: 12px; margin-top: 4px">
+            <div v-if="workloadWarning" style="color: var(--el-color-warning); font-size: 12px; margin-top: 4px">
               ⚠ 该成员当前进行中任务 ≥ 3，工作量较高
             </div>
           </el-descriptions-item>
@@ -379,7 +379,7 @@ function close() {
           @change="handleCameraChange"
         />
       </div>
-      <div v-if="attachments.length === 0" style="color: #909399; font-size: 13px; margin-bottom: 12px">暂无附件</div>
+      <div v-if="attachments.length === 0" style="color: var(--el-text-color-secondary); font-size: 13px; margin-bottom: 12px">暂无附件</div>
       <div v-for="att in attachments" :key="att.id" class="attachment-item">
         <el-tooltip v-if="isImage(att)" placement="right" effect="light" :hide-after="0">
           <template #content>
@@ -388,7 +388,7 @@ function close() {
               :src="previewUrls[att.id]"
               style="max-width: 260px; max-height: 260px; display: block; border-radius: 4px"
             />
-            <span v-else style="color: #909399; font-size: 12px">加载中...</span>
+            <span v-else style="color: var(--el-text-color-secondary); font-size: 12px">加载中...</span>
           </template>
           <a href="#" class="attachment-name" @click.prevent="handleDownload(att)" @mouseenter="loadPreview(att)">
             {{ att.original_name }}
@@ -425,10 +425,10 @@ function close() {
           <el-tag :type="esc.status === 'resolved' ? 'success' : 'danger'" size="small">
             {{ esc.status === 'resolved' ? '已解决' : '待处理' }}
           </el-tag>
-          <span style="font-size: 12px; color: #909399">{{ formatDateTime(esc.created_at) }}</span>
+          <span style="font-size: 12px; color: var(--el-text-color-secondary)">{{ formatDateTime(esc.created_at) }}</span>
         </div>
         <div style="font-size: 13px; margin-bottom: 4px">{{ esc.description }}</div>
-        <div v-if="esc.resolution" style="font-size: 13px; color: #67c23a">解决: {{ esc.resolution }}</div>
+        <div v-if="esc.resolution" style="font-size: 13px; color: var(--el-color-success)">解决: {{ esc.resolution }}</div>
         <el-button v-if="esc.status !== 'resolved'" size="small" text type="success" @click="handleResolveEscalation(esc)">
           标记解决
         </el-button>
@@ -454,9 +454,9 @@ function close() {
       <el-divider content-position="left">流转记录</el-divider>
       <el-timeline>
         <el-timeline-item v-for="t in transitions" :key="t.id" :timestamp="formatDateTime(t.created_at)">
-          <span style="color: #409eff">{{ t.operator_name }}</span>:
+          <span style="color: var(--el-color-primary)">{{ t.operator_name }}</span>:
           {{ t.from_status || '(创建)' }} → {{ t.to_status }}
-          <span v-if="t.remark" style="color: #e6a23c; margin-left: 8px">{{ t.remark }}</span>
+          <span v-if="t.remark" style="color: var(--el-color-warning); margin-left: 8px">{{ t.remark }}</span>
         </el-timeline-item>
       </el-timeline>
     </template>
@@ -473,7 +473,7 @@ function close() {
 }
 .attachment-name {
   flex: 1;
-  color: #409eff;
+  color: var(--el-color-primary);
   text-decoration: none;
   font-size: 13px;
   overflow: hidden;
@@ -485,12 +485,12 @@ function close() {
 }
 .attachment-size {
   font-size: 12px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
   white-space: nowrap;
 }
 .attachment-time {
   font-size: 12px;
-  color: #c0c4cc;
+  color: var(--el-text-color-placeholder);
   white-space: nowrap;
 }
 .escalation-item {

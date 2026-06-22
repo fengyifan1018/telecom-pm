@@ -9,14 +9,14 @@ const props = defineProps({
 const PX_PER_DAY = 28
 
 const STATUS_COLORS = {
-  pending:   '#dcdfe6',
-  active:    '#409eff',
-  review:    '#e6a23c',
-  done:      '#67c23a',
-  paused:    '#909399',
-  blocked:   '#f56c6c',
-  rework:    '#e6a23c',
-  cancelled: '#c0c4cc',
+  pending:   'var(--el-border-color)',
+  active:    'var(--el-color-primary)',
+  review:    'var(--el-color-warning)',
+  done:      'var(--el-color-success)',
+  paused:    'var(--el-text-color-secondary)',
+  blocked:   'var(--el-color-danger)',
+  rework:    'var(--el-color-warning)',
+  cancelled: 'var(--el-text-color-placeholder)',
 }
 
 // Parse "YYYY-MM-DD" as local midnight — avoids UTC-offset shifting
@@ -89,7 +89,7 @@ const chartData = computed(() => {
       hasBar: true,
       left:   offset * PX_PER_DAY,
       width:  dur * PX_PER_DAY,
-      color:  STATUS_COLORS[t.status] || '#dcdfe6',
+      color:  STATUS_COLORS[t.status] || 'var(--el-border-color)',
     }
   })
 
@@ -199,14 +199,14 @@ const chartData = computed(() => {
     </div>
   </div>
 
-  <div v-else style="text-align:center; color:#909399; padding:40px 0">
+  <div v-else style="text-align:center; color:var(--el-text-color-secondary); padding:40px 0">
     暂无排期数据（需在任务抽屉中为任务设置计划开始/结束日期）
   </div>
 </template>
 
 <style scoped>
 .gantt-outer {
-  border: 1px solid #dcdfe6;
+  border: 1px solid var(--el-border-color);
   border-radius: 4px;
   overflow: hidden;
   font-size: 12px;
@@ -220,8 +220,8 @@ const chartData = computed(() => {
 .gantt-head-wrap {
   display: flex;
   align-items: stretch;
-  background: #f5f7fa;
-  border-bottom: 2px solid #dcdfe6;
+  background: var(--el-fill-color-light);
+  border-bottom: 2px solid var(--el-border-color);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -229,8 +229,8 @@ const chartData = computed(() => {
 
 .head-label {
   font-weight: bold;
-  color: #606266;
-  background: #f5f7fa;
+  color: var(--el-text-color-regular);
+  background: var(--el-fill-color-light);
   /* height = month row (22px) + day row (24px) */
   height: 46px;
 }
@@ -247,7 +247,7 @@ const chartData = computed(() => {
   left: 0;
   right: 0;
   height: 22px;
-  border-bottom: 1px solid #dcdfe6;
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .month-cell {
@@ -258,8 +258,8 @@ const chartData = computed(() => {
   padding: 0 6px;
   font-size: 11px;
   font-weight: bold;
-  color: #303133;
-  border-right: 1px solid #dcdfe6;
+  color: var(--el-text-color-primary);
+  border-right: 1px solid var(--el-border-color);
   box-sizing: border-box;
   white-space: nowrap;
   overflow: hidden;
@@ -281,17 +281,17 @@ const chartData = computed(() => {
   justify-content: center;
   border-right: 1px solid #ebeef5;
   box-sizing: border-box;
-  color: #606266;
+  color: var(--el-text-color-regular);
   font-size: 11px;
 }
 
 .day-cell.weekend {
-  color: #e6a23c;
+  color: var(--el-color-warning);
   background: rgba(230, 162, 60, 0.08);
 }
 
 .day-cell.today-col {
-  color: #f56c6c;
+  color: var(--el-color-danger);
   font-weight: bold;
   background: rgba(245, 108, 108, 0.1);
 }
@@ -320,7 +320,7 @@ const chartData = computed(() => {
   padding: 4px 8px;
   display: flex;
   align-items: center;
-  border-right: 1px solid #dcdfe6;
+  border-right: 1px solid var(--el-border-color);
   overflow: hidden;
 }
 
@@ -372,7 +372,7 @@ const chartData = computed(() => {
   top: 0;
   bottom: 0;
   width: 2px;
-  background: #f56c6c;
+  background: var(--el-color-danger);
   z-index: 2;
   pointer-events: none;
 }
@@ -411,7 +411,7 @@ const chartData = computed(() => {
   top: 50%;
   left: 10px;
   transform: translateY(-50%);
-  color: #c0c4cc;
+  color: var(--el-text-color-placeholder);
   font-size: 12px;
 }
 </style>

@@ -30,7 +30,7 @@ defineProps({
   color: var(--text-secondary);
 }
 .empty-state__icon {
-  color: #c0c4cc;
+  color: var(--el-text-color-placeholder);
   margin-bottom: var(--sp-3);
 }
 .empty-state__text {

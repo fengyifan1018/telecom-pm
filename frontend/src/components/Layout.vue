@@ -46,21 +46,21 @@ const isAdmin = computed(() => auth.user?.role === 'admin')
 const can = (key) => auth.hasPermission(key)
 
 const NOTIF_META = {
-  task_assigned: { color: '#1890ff', icon: Avatar },
-  task_status: { color: '#1890ff', icon: RefreshRight },
-  overdue: { color: '#f56c6c', icon: Warning },
-  due_soon: { color: '#e6a23c', icon: AlarmClock },
-  escalation: { color: '#f56c6c', icon: WarnTriangleFilled },
-  cr_submitted: { color: '#1890ff', icon: Document },
-  cr_approved: { color: '#67c23a', icon: CircleCheck },
-  cr_rejected: { color: '#f56c6c', icon: CircleClose },
-  project_completed: { color: '#67c23a', icon: CircleCheckFilled },
-  project_assigned: { color: '#1890ff', icon: Folder },
-  project_initiated: { color: '#1890ff', icon: Promotion },
-  comment_mention: { color: '#909399', icon: ChatDotRound },
+  task_assigned: { color: 'var(--el-color-primary)', icon: Avatar },
+  task_status: { color: 'var(--el-color-primary)', icon: RefreshRight },
+  overdue: { color: 'var(--el-color-danger)', icon: Warning },
+  due_soon: { color: 'var(--el-color-warning)', icon: AlarmClock },
+  escalation: { color: 'var(--el-color-danger)', icon: WarnTriangleFilled },
+  cr_submitted: { color: 'var(--el-color-primary)', icon: Document },
+  cr_approved: { color: 'var(--el-color-success)', icon: CircleCheck },
+  cr_rejected: { color: 'var(--el-color-danger)', icon: CircleClose },
+  project_completed: { color: 'var(--el-color-success)', icon: CircleCheckFilled },
+  project_assigned: { color: 'var(--el-color-primary)', icon: Folder },
+  project_initiated: { color: 'var(--el-color-primary)', icon: Promotion },
+  comment_mention: { color: 'var(--el-text-color-secondary)', icon: ChatDotRound },
 }
 function notifMeta(type) {
-  return NOTIF_META[type] || { color: '#909399', icon: Bell }
+  return NOTIF_META[type] || { color: 'var(--el-text-color-secondary)', icon: Bell }
 }
 
 const groupedNotifications = computed(() => {
@@ -158,13 +158,13 @@ onMounted(() => {
 <template>
   <el-container style="height: 100vh">
     <!-- Desktop sidebar -->
-    <el-aside v-if="!isMobile" width="200px" style="background: #001529">
+    <el-aside v-if="!isMobile" width="200px" style="background: var(--brand-sidebar-bg)">
       <div style="display: flex; justify-content: center; padding: 18px 16px">
         <BrandLogo :height="30" />
       </div>
       <el-menu
         :default-active="$route.path"
-        background-color="#001529"
+        background-color="var(--brand-sidebar-bg)"
         text-color="#ffffffa6"
         active-text-color="#fff"
         router
@@ -215,13 +215,13 @@ onMounted(() => {
 
     <!-- Mobile slide-out nav -->
     <el-drawer v-if="isMobile" v-model="showMobileNav" direction="ltr" size="220px" :with-header="false">
-      <div style="background:#001529;height:100%;overflow-y:auto">
+      <div style="background:var(--brand-sidebar-bg);height:100%;overflow-y:auto">
         <div style="padding:20px 16px 12px">
           <BrandLogo :height="30" />
         </div>
         <el-menu
           :default-active="$route.path"
-          background-color="#001529"
+          background-color="var(--brand-sidebar-bg)"
           text-color="#ffffffa6"
           active-text-color="#fff"
           router
@@ -285,7 +285,7 @@ onMounted(() => {
           全部已读
         </el-button>
       </div>
-      <div v-if="notifications.length === 0" style="text-align: center; color: #909399; padding: 40px 0">
+      <div v-if="notifications.length === 0" style="text-align: center; color: var(--el-text-color-secondary); padding: 40px 0">
         暂无通知
       </div>
       <div v-for="g in groupedNotifications" :key="g.label" class="notif-group">
@@ -342,7 +342,7 @@ onMounted(() => {
   justify-content: center;
   gap: 2px;
   font-size: 11px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
   text-decoration: none;
   border: none;
   background: none;
@@ -350,7 +350,7 @@ onMounted(() => {
   padding: 0;
 }
 .bottom-nav-item.active, .bottom-nav-item.router-link-active {
-  color: #409eff;
+  color: var(--el-color-primary);
 }
 .bottom-nav-item span { line-height: 1; }
 
@@ -371,7 +371,7 @@ onMounted(() => {
   border-radius: var(--radius-md);
 }
 .notification-item:hover {
-  background: #f5f7fa;
+  background: var(--el-fill-color-light);
 }
 .notification-item.unread {
   background: var(--el-color-primary-light-9);

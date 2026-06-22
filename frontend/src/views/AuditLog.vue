@@ -151,7 +151,7 @@ onMounted(fetchLogs)
         </el-table-column>
         <el-table-column prop="detail" label="详情" min-width="200">
           <template #default="{ row }">
-            <span style="color: #606266; font-size: 12px">{{ formatDetail(row.detail) }}</span>
+            <span style="color: var(--el-text-color-regular); font-size: 12px">{{ formatDetail(row.detail) }}</span>
           </template>
         </el-table-column>
       </el-table>

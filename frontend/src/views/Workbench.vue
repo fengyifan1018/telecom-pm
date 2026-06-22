@@ -23,10 +23,10 @@ const drawerVisible = ref(false)
 const selectedTask = ref(null)
 
 const statCards = computed(() => [
-  { key: 'active', label: '进行中', value: stats.value.active, color: '#1890ff' },
-  { key: 'review', label: '待审核', value: stats.value.review, color: '#e6a23c' },
-  { key: 'done', label: '已完成', value: stats.value.done, color: '#67c23a' },
-  { key: 'overdue', label: '超期', value: stats.value.overdue, color: '#f56c6c' },
+  { key: 'active', label: '进行中', value: stats.value.active, color: 'var(--el-color-primary)' },
+  { key: 'review', label: '待审核', value: stats.value.review, color: 'var(--el-color-warning)' },
+  { key: 'done', label: '已完成', value: stats.value.done, color: 'var(--el-color-success)' },
+  { key: 'overdue', label: '超期', value: stats.value.overdue, color: 'var(--el-color-danger)' },
 ])
 
 async function loadData() {
@@ -99,7 +99,7 @@ function isOverdue(task) {
             </el-table-column>
             <el-table-column label="截止" width="110">
               <template #default="{ row }">
-                <span :style="{ color: isOverdue(row) ? '#f56c6c' : '', fontWeight: isOverdue(row) ? 'bold' : '' }">
+                <span :style="{ color: isOverdue(row) ? 'var(--el-color-danger)' : '', fontWeight: isOverdue(row) ? 'bold' : '' }">
                   {{ row.planned_end || '-' }}
                 </span>
               </template>
@@ -131,7 +131,7 @@ function isOverdue(task) {
         </el-tab-pane>
         <el-tab-pane name="overdue">
           <template #label>
-            <span :style="{ color: overdueTasks.length ? '#f56c6c' : '' }">
+            <span :style="{ color: overdueTasks.length ? 'var(--el-color-danger)' : '' }">
               超期 ({{ overdueTasks.length }})
             </span>
           </template>
@@ -148,8 +148,8 @@ function isOverdue(task) {
             </el-table-column>
             <el-table-column label="截止日期" width="120">
               <template #default="{ row }">
-                <span style="color: #f56c6c; font-weight: bold">{{ row.planned_end }}</span>
-                <span style="color: #f56c6c; font-size: 11px; margin-left: 4px">
+                <span style="color: var(--el-color-danger); font-weight: bold">{{ row.planned_end }}</span>
+                <span style="color: var(--el-color-danger); font-size: 11px; margin-left: 4px">
                   (超{{ overdueDays(row.planned_end) }}天)
                 </span>
               </template>
@@ -173,7 +173,7 @@ function isOverdue(task) {
 <style scoped>
 .stat-card { text-align: center; padding: 8px 0; }
 .stat-number { font-size: 32px; font-weight: bold; }
-.stat-label { font-size: 14px; color: #909399; margin-top: 4px; }
+.stat-label { font-size: 14px; color: var(--el-text-color-secondary); margin-top: 4px; }
 
 .stat-card-clickable {
   cursor: pointer;

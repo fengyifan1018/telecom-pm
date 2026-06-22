@@ -96,7 +96,7 @@ async function handleLogin() {
   padding: 48px;
   overflow: hidden;
   color: #fff;
-  background: linear-gradient(150deg, #001529 0%, #003a70 55%, #1262b3 140%);
+  background: linear-gradient(150deg, var(--brand-sidebar-bg) 0%, #003a70 55%, #1262b3 140%);
 }
 .login__brand::after {
   content: '';
@@ -147,7 +147,7 @@ async function handleLogin() {
   width: 8px;
   height: 8px;
   border-radius: 2px;
-  background: #1890ff;
+  background: var(--el-color-primary);
   box-shadow: 0 0 0 4px rgba(24, 144, 255, 0.25);
 }
 .login__brand-foot {
@@ -179,26 +179,26 @@ async function handleLogin() {
   margin: 0 0 6px;
   font-size: 24px;
   font-weight: 600;
-  color: #1f2329;
+  color: var(--text-title);
   text-align: center;
 }
 .login__hint {
   margin: 0 0 28px;
   font-size: 14px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
   text-align: center;
 }
 .login__demo {
   margin-top: 16px;
   font-size: 12px;
-  color: #c0c4cc;
+  color: var(--el-text-color-placeholder);
   text-align: center;
 }
 .login__panel-foot {
   position: absolute;
   bottom: 24px;
   font-size: 12px;
-  color: #c0c4cc;
+  color: var(--el-text-color-placeholder);
 }
 
 /* Mobile: hide brand panel, show wordmark above the form */

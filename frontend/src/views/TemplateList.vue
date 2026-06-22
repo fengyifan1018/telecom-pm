@@ -41,11 +41,11 @@ const ROLE_OPTIONS = [
 ]
 
 const ROLE_COLOR = {
-  pm: '#409eff',
-  operations: '#67c23a',
-  procurement: '#e6a23c',
-  network_engineer: '#909399',
-  field_engineer: '#f56c6c',
+  pm: 'var(--el-color-primary)',
+  operations: 'var(--el-color-success)',
+  procurement: 'var(--el-color-warning)',
+  network_engineer: 'var(--el-text-color-secondary)',
+  field_engineer: 'var(--el-color-danger)',
   admin: '#6f42c1',
 }
 
@@ -189,7 +189,7 @@ async function toggleActive(t) {
                 <el-tag size="small">{{ PRODUCT_TYPE_MAP[t.product_type] || t.product_type }}</el-tag>
                 <el-tag type="info" size="small">v{{ t.version }}</el-tag>
                 <el-tag :type="t.is_active ? 'success' : 'danger'" size="small">{{ t.is_active ? '启用中' : '已停用' }}</el-tag>
-                <span style="font-size: 12px; color: #909399">
+                <span style="font-size: 12px; color: var(--el-text-color-secondary)">
                   {{ t.phases.length }} 阶段 · {{ getTotalTasks(t) }} 任务 · 预估 {{ getTotalDays(t) }} 工作日
                 </span>
               </el-space>
@@ -201,7 +201,7 @@ async function toggleActive(t) {
                   {{ t.is_active ? '停用' : '启用' }}
                 </el-button>
               </template>
-              <span style="font-size: 18px; color: #c0c4cc; transition: transform 0.2s; display: inline-block"
+              <span style="font-size: 18px; color: var(--el-text-color-placeholder); transition: transform 0.2s; display: inline-block"
                 :style="{ transform: expandedId === t.id ? 'rotate(180deg)' : '' }">▾</span>
             </div>
           </div>
@@ -210,9 +210,9 @@ async function toggleActive(t) {
           <div v-if="expandedId === t.id" style="margin-top: 16px">
             <div class="phase-flow">
               <template v-for="(phase, idx) in t.phases" :key="phase.phase">
-                <div class="phase-block" :style="{ borderTopColor: ROLE_COLOR[phase.role] || '#409eff' }">
+                <div class="phase-block" :style="{ borderTopColor: ROLE_COLOR[phase.role] || 'var(--el-color-primary)' }">
                   <div class="phase-block-header">
-                    <span class="phase-number" :style="{ background: ROLE_COLOR[phase.role] || '#409eff' }">{{ idx + 1 }}</span>
+                    <span class="phase-number" :style="{ background: ROLE_COLOR[phase.role] || 'var(--el-color-primary)' }">{{ idx + 1 }}</span>
                     <span class="phase-block-name">{{ phase.name }}</span>
                     <el-tag size="small" type="info">{{ phase.estimated_days }}天</el-tag>
                   </div>
@@ -223,7 +223,7 @@ async function toggleActive(t) {
                     <div v-for="task in phase.tasks" :key="task.title" class="phase-task-item">
                       <span :class="{ 'is-required': task.required }">{{ task.required ? '●' : '○' }}</span>
                       {{ task.title }}
-                      <span style="color: #c0c4cc; margin-left: auto; font-size: 11px">{{ task.estimated_days }}天</span>
+                      <span style="color: var(--el-text-color-placeholder); margin-left: auto; font-size: 11px">{{ task.estimated_days }}天</span>
                     </div>
                   </div>
                 </div>
@@ -265,8 +265,8 @@ async function toggleActive(t) {
           <!-- Flow Strip Preview -->
           <div class="flow-strip" v-if="editPhases.length">
             <template v-for="(phase, idx) in editPhases" :key="idx">
-              <div class="strip-node" :style="{ borderColor: ROLE_COLOR[phase.role] || '#409eff' }">
-                <span class="strip-num" :style="{ background: ROLE_COLOR[phase.role] || '#409eff' }">{{ idx + 1 }}</span>
+              <div class="strip-node" :style="{ borderColor: ROLE_COLOR[phase.role] || 'var(--el-color-primary)' }">
+                <span class="strip-num" :style="{ background: ROLE_COLOR[phase.role] || 'var(--el-color-primary)' }">{{ idx + 1 }}</span>
                 <span class="strip-name">{{ phase.name || '?' }}</span>
                 <span class="strip-days">{{ phase.estimated_days }}天</span>
               </div>
@@ -278,11 +278,11 @@ async function toggleActive(t) {
           <!-- Phase Cards -->
           <div class="phase-editor-list">
             <div v-for="(phase, idx) in editPhases" :key="idx" class="phase-edit-card"
-              :style="{ borderLeftColor: ROLE_COLOR[phase.role] || '#409eff' }">
+              :style="{ borderLeftColor: ROLE_COLOR[phase.role] || 'var(--el-color-primary)' }">
 
               <!-- Phase Header Row -->
               <div class="phase-edit-header">
-                <span class="phase-edit-num" :style="{ background: ROLE_COLOR[phase.role] || '#409eff' }">{{ idx + 1 }}</span>
+                <span class="phase-edit-num" :style="{ background: ROLE_COLOR[phase.role] || 'var(--el-color-primary)' }">{{ idx + 1 }}</span>
                 <el-input v-model="phase.name" placeholder="阶段名称" style="width: 140px" />
                 <el-input
                   v-model="phase.phase"
@@ -299,7 +299,7 @@ async function toggleActive(t) {
                   controls-position="right"
                   style="width: 90px"
                 />
-                <span style="font-size: 12px; color: #909399">天</span>
+                <span style="font-size: 12px; color: var(--el-text-color-secondary)">天</span>
                 <div style="margin-left: auto; display: flex; gap: 2px">
                   <el-button text size="small" :disabled="idx === 0" @click="movePhase(idx, -1)">↑</el-button>
                   <el-button text size="small" :disabled="idx === editPhases.length - 1" @click="movePhase(idx, 1)">↓</el-button>
@@ -413,7 +413,7 @@ async function toggleActive(t) {
 .phase-block {
   background: #f9fafc;
   border: 1px solid #ebeef5;
-  border-top: 3px solid #409eff;
+  border-top: 3px solid var(--el-color-primary);
   border-radius: 6px;
   padding: 12px;
   min-width: 180px;
@@ -429,24 +429,24 @@ async function toggleActive(t) {
 .phase-number {
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: #409eff;
+  background: var(--el-color-primary);
   color: #fff;
   font-size: 12px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
 .phase-block-name { font-weight: bold; font-size: 13px; }
-.phase-deps { font-size: 11px; color: #909399; margin-bottom: 6px; }
+.phase-deps { font-size: 11px; color: var(--el-text-color-secondary); margin-bottom: 6px; }
 .phase-tasks { display: flex; flex-direction: column; gap: 3px; }
 .phase-task-item {
   font-size: 12px;
   display: flex; align-items: center; gap: 5px; padding: 2px 0;
 }
-.is-required { color: #f56c6c; }
+.is-required { color: var(--el-color-danger); }
 .phase-connector {
   align-self: center;
   padding: 0 6px;
-  color: #c0c4cc;
+  color: var(--el-text-color-placeholder);
   font-size: 18px;
   flex-shrink: 0;
 }
@@ -472,7 +472,7 @@ async function toggleActive(t) {
   min-height: 48px;
 }
 .flow-strip-empty {
-  color: #c0c4cc;
+  color: var(--el-text-color-placeholder);
   font-size: 13px;
 }
 .strip-node {
@@ -480,7 +480,7 @@ async function toggleActive(t) {
   align-items: center;
   gap: 4px;
   background: #fff;
-  border: 1.5px solid #409eff;
+  border: 1.5px solid var(--el-color-primary);
   border-radius: 20px;
   padding: 3px 10px 3px 4px;
   font-size: 12px;
@@ -488,15 +488,15 @@ async function toggleActive(t) {
 .strip-num {
   width: 18px; height: 18px;
   border-radius: 50%;
-  background: #409eff;
+  background: var(--el-color-primary);
   color: #fff;
   font-size: 11px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
 .strip-name { font-weight: 500; }
-.strip-days { color: #909399; font-size: 11px; }
-.strip-arrow { color: #c0c4cc; font-size: 14px; }
+.strip-days { color: var(--el-text-color-secondary); font-size: 11px; }
+.strip-arrow { color: var(--el-text-color-placeholder); font-size: 14px; }
 
 /* Phase editor cards */
 .phase-editor-list {
@@ -509,7 +509,7 @@ async function toggleActive(t) {
 }
 .phase-edit-card {
   border: 1px solid #ebeef5;
-  border-left: 4px solid #409eff;
+  border-left: 4px solid var(--el-color-primary);
   border-radius: 6px;
   padding: 12px 14px;
   background: #fff;
@@ -523,7 +523,7 @@ async function toggleActive(t) {
 .phase-edit-num {
   width: 24px; height: 24px;
   border-radius: 50%;
-  background: #409eff;
+  background: var(--el-color-primary);
   color: #fff;
   font-size: 12px;
   display: flex; align-items: center; justify-content: center;
@@ -537,7 +537,7 @@ async function toggleActive(t) {
 }
 .deps-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
   white-space: nowrap;
 }
 </style>

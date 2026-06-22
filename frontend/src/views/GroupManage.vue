@@ -160,7 +160,7 @@ function availableUsers(groupId) {
       <el-table-column prop="name" label="用户组名称" min-width="150" />
       <el-table-column prop="description" label="描述" min-width="200">
         <template #default="{ row }">
-          <span style="color: #909399">{{ row.description || '-' }}</span>
+          <span style="color: var(--el-text-color-secondary)">{{ row.description || '-' }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="member_count" label="成员数" width="80" align="center" />

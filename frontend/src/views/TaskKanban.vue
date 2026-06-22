@@ -228,7 +228,7 @@ async function onDrop(event, colKey) {
 .kanban-column {
   flex: 1;
   min-width: 240px;
-  background: #f5f7fa;
+  background: var(--el-fill-color-light);
   border-radius: 8px;
   padding: 12px;
   display: flex;
@@ -238,7 +238,7 @@ async function onDrop(event, colKey) {
 }
 .kanban-column.drag-over {
   background: #ecf5ff;
-  border-color: #409eff;
+  border-color: var(--el-color-primary);
 }
 .kanban-header {
   display: flex;
@@ -250,7 +250,7 @@ async function onDrop(event, colKey) {
 }
 .kanban-count {
   font-size: 12px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
   background: #e4e7ed;
   border-radius: 10px;
   padding: 0 6px;
@@ -282,36 +282,36 @@ async function onDrop(event, colKey) {
 }
 .card-project {
   font-size: 11px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
   margin-bottom: 4px;
 }
 .card-title {
   font-size: 14px;
-  color: #303133;
+  color: var(--el-text-color-primary);
   margin-bottom: 8px;
 }
 .card-meta {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
 }
 .card-assignee {
-  color: #409eff;
+  color: var(--el-color-primary);
   font-size: 11px;
 }
 .card-due {
   font-size: 11px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
   margin-top: 4px;
 }
 .is-overdue {
-  color: #f56c6c;
+  color: var(--el-color-danger);
   font-weight: bold;
 }
 .drag-hint {
   font-size: 10px;
-  color: #c0c4cc;
+  color: var(--el-text-color-placeholder);
   margin-top: 4px;
   display: none;
 }

@@ -58,29 +58,29 @@ const phaseStatus = computed(() => {
   justify-content: center;
   font-size: 14px;
   font-weight: bold;
-  border: 2px solid #dcdfe6;
-  color: #909399;
+  border: 2px solid var(--el-border-color);
+  color: var(--el-text-color-secondary);
   background: #fff;
   z-index: 1;
 }
 .phase-done {
-  background: #67c23a;
-  border-color: #67c23a;
+  background: var(--el-color-success);
+  border-color: var(--el-color-success);
   color: #fff;
 }
 .phase-active {
-  background: #409eff;
-  border-color: #409eff;
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
   color: #fff;
 }
 .phase-name {
   font-size: 12px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
   margin-top: 6px;
   text-align: center;
 }
 .phase-name.is-active {
-  color: #409eff;
+  color: var(--el-color-primary);
   font-weight: bold;
 }
 .phase-line {
@@ -89,9 +89,9 @@ const phaseStatus = computed(() => {
   left: calc(50% + 16px);
   width: calc(100% - 32px);
   height: 2px;
-  background: #dcdfe6;
+  background: var(--el-border-color);
 }
 .line-done {
-  background: #67c23a;
+  background: var(--el-color-success);
 }
 </style>

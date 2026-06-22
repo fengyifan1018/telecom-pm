@@ -132,7 +132,7 @@ function onRefresh() { fetchData() }
       </el-table-column>
       <el-table-column label="截止" width="120" prop="planned_end" sortable="custom">
         <template #default="{ row }">
-          <span :style="{ color: isOverdue(row) ? '#f56c6c' : '', fontWeight: isOverdue(row) ? 'bold' : '' }">
+          <span :style="{ color: isOverdue(row) ? 'var(--el-color-danger)' : '', fontWeight: isOverdue(row) ? 'bold' : '' }">
             {{ row.planned_end || '—' }}
           </span>
         </template>
