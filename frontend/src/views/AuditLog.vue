@@ -146,10 +146,10 @@ onMounted(fetchLogs)
         <el-table-column prop="resource_type" label="对象类型" width="90">
           <template #default="{ row }">{{ RESOURCE_MAP[row.resource_type] || row.resource_type || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="resource_name" label="对象名称" min-width="160">
+        <el-table-column prop="resource_name" label="对象名称" min-width="160" show-overflow-tooltip>
           <template #default="{ row }">{{ row.resource_name || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="detail" label="详情" min-width="200">
+        <el-table-column prop="detail" label="详情" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             <span style="color: var(--el-text-color-regular); font-size: 12px">{{ formatDetail(row.detail) }}</span>
           </template>

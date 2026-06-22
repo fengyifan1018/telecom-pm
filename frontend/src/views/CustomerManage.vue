@@ -128,7 +128,7 @@ async function handleDelete(row) {
             <el-button v-if="canEdit" type="primary" @click="openCreate">新增客户</el-button>
           </EmptyState>
         </template>
-        <el-table-column prop="name" label="客户名称" min-width="180" />
+        <el-table-column prop="name" label="客户名称" min-width="180" show-overflow-tooltip/>
         <el-table-column prop="contact_name" label="联系人" width="120">
           <template #default="{ row }">{{ row.contact_name || '-' }}</template>
         </el-table-column>

@@ -397,7 +397,7 @@ async function handleRejectCR() {
                 </span>
               </div>
               <el-table :data="group.tasks" size="small" @row-click="openTask" highlight-current-row style="cursor: pointer">
-                <el-table-column prop="title" label="任务" min-width="200" />
+                <el-table-column prop="title" label="任务" min-width="200" show-overflow-tooltip/>
                 <el-table-column prop="status" label="状态" width="90">
                   <template #default="{ row }">
                     <el-tag :type="STATUS_MAP[row.status]?.type" size="small">{{ STATUS_MAP[row.status]?.label }}</el-tag>
@@ -423,7 +423,7 @@ async function handleRejectCR() {
             <EmptyState v-if="changeRequests.length === 0" text="暂无变更申请" />
             <el-table v-else :data="changeRequests" size="small">
               <el-table-column prop="cr_no" label="编号" width="160" />
-              <el-table-column prop="title" label="标题" min-width="180" />
+              <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip/>
               <el-table-column prop="requester_name" label="申请人" width="100" />
               <el-table-column prop="status" label="状态" width="90">
                 <template #default="{ row }">

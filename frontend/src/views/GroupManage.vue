@@ -157,8 +157,8 @@ function availableUsers(groupId) {
         </EmptyState>
       </template>
       <el-table-column prop="id" label="ID" width="60" />
-      <el-table-column prop="name" label="用户组名称" min-width="150" />
-      <el-table-column prop="description" label="描述" min-width="200">
+      <el-table-column prop="name" label="用户组名称" min-width="150" show-overflow-tooltip/>
+      <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip>
         <template #default="{ row }">
           <span style="color: var(--el-text-color-secondary)">{{ row.description || '-' }}</span>
         </template>

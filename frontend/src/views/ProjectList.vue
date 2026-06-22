@@ -138,8 +138,8 @@ async function handleDelete(row, e) {
           </EmptyState>
         </template>
         <el-table-column prop="project_no" label="项目编号" width="160" />
-        <el-table-column prop="name" label="项目名称" min-width="180" />
-        <el-table-column prop="customer_name" label="客户" width="130">
+        <el-table-column prop="name" label="项目名称" min-width="180" show-overflow-tooltip/>
+        <el-table-column prop="customer_name" label="客户" width="130" show-overflow-tooltip>
           <template #default="{ row }">{{ row.customer_name || '-' }}</template>
         </el-table-column>
         <el-table-column prop="product_type" label="产品线" width="90">
