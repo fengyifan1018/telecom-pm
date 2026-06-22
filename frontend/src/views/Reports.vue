@@ -239,7 +239,7 @@ const workloadBarOption = computed(() => ({
       <el-col :span="14">
         <el-card>
           <template #header>阶段详情表</template>
-          <el-table :data="Object.entries(phaseStats).map(([k, v]) => ({ phase: k, ...v }))" size="small">
+          <el-table stripe :data="Object.entries(phaseStats).map(([k, v]) => ({ phase: k, ...v }))" size="small">
             <el-table-column label="阶段" width="110">
               <template #default="{ row }">{{ PHASE_MAP[row.phase] || row.phase }}</template>
             </el-table-column>

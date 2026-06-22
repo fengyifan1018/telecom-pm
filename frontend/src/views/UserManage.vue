@@ -114,7 +114,7 @@ onMounted(fetchUsers)
     </PageHeader>
 
     <el-skeleton v-if="loading" :rows="6" animated style="padding: 8px 0" />
-    <el-table v-else :data="pagedUsers" border stripe>
+    <el-table v-else :data="pagedUsers" stripe>
       <template #empty><EmptyState text="暂无用户" /></template>
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="username" label="用户名" width="120" />

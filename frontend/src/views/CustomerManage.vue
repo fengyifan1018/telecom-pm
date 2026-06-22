@@ -122,7 +122,7 @@ async function handleDelete(row) {
       </div>
 
       <el-skeleton v-if="loading" :rows="6" animated style="padding: 8px 0" />
-      <el-table v-else :data="pagedCustomers" border stripe>
+      <el-table v-else :data="pagedCustomers" stripe>
         <template #empty>
           <EmptyState text="暂无客户">
             <el-button v-if="canEdit" type="primary" @click="openCreate">新增客户</el-button>

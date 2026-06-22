@@ -396,7 +396,7 @@ async function handleRejectCR() {
                   <el-button size="small" type="danger" text @click.stop="handleDeleteDeliverable(d)" style="padding: 0 4px; margin-left: 2px">×</el-button>
                 </span>
               </div>
-              <el-table :data="group.tasks" size="small" @row-click="openTask" highlight-current-row style="cursor: pointer">
+              <el-table stripe :data="group.tasks" size="small" @row-click="openTask" highlight-current-row style="cursor: pointer">
                 <el-table-column prop="title" label="任务" min-width="200" show-overflow-tooltip/>
                 <el-table-column prop="status" label="状态" width="90">
                   <template #default="{ row }">
@@ -421,7 +421,7 @@ async function handleRejectCR() {
               <el-button size="small" type="primary" @click="showCRDialog = true">提交变更申请</el-button>
             </div>
             <EmptyState v-if="changeRequests.length === 0" text="暂无变更申请" />
-            <el-table v-else :data="changeRequests" size="small">
+            <el-table stripe v-else :data="changeRequests" size="small">
               <el-table-column prop="cr_no" label="编号" width="160" />
               <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip/>
               <el-table-column prop="requester_name" label="申请人" width="100" />

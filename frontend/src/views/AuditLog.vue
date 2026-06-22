@@ -130,7 +130,7 @@ onMounted(fetchLogs)
       </div>
 
       <el-skeleton v-if="loading" :rows="6" animated style="padding: 8px 0" />
-      <el-table v-else :data="logs" border stripe>
+      <el-table v-else :data="logs" stripe>
         <template #empty><EmptyState text="暂无审计记录" /></template>
         <el-table-column prop="created_at" label="时间" width="160">
           <template #default="{ row }">{{ formatDateTime(row.created_at, true) }}</template>

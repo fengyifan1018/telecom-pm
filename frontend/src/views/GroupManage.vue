@@ -150,7 +150,7 @@ function availableUsers(groupId) {
     </PageHeader>
 
     <el-skeleton v-if="loading" :rows="6" animated style="padding: 8px 0" />
-    <el-table v-else :data="pagedGroups" border stripe row-key="id">
+    <el-table v-else :data="pagedGroups" stripe row-key="id">
       <template #empty>
         <EmptyState text="暂无用户组">
           <el-button type="primary" @click="openCreate">新建用户组</el-button>
@@ -215,7 +215,7 @@ function availableUsers(groupId) {
         text="暂无成员"
         :size="32"
       />
-      <el-table v-else :data="membersByGroup[expandedGroupId]" size="small" border>
+      <el-table stripe v-else :data="membersByGroup[expandedGroupId]" size="small">
         <el-table-column prop="display_name" label="显示名" width="140" />
         <el-table-column prop="username" label="用户名" width="120" />
         <el-table-column prop="role" label="角色" width="120">

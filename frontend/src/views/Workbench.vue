@@ -91,7 +91,7 @@ function isOverdue(task) {
     <el-card>
       <el-tabs v-model="activeTab">
         <el-tab-pane :label="`进行中 (${myTasks.length})`" name="active">
-          <el-table :data="myTasks" style="width: 100%" @row-click="openTask" highlight-current-row size="small">
+          <el-table stripe :data="myTasks" style="width: 100%" @row-click="openTask" highlight-current-row size="small">
             <el-table-column prop="task_no" label="编号" width="160" class-name="col-task-no" />
             <el-table-column prop="title" label="任务" min-width="180" show-overflow-tooltip/>
             <el-table-column label="阶段" width="100">
@@ -108,7 +108,7 @@ function isOverdue(task) {
           <EmptyState v-if="myTasks.length === 0" text="暂无进行中的任务" />
         </el-tab-pane>
         <el-tab-pane :label="`待审核 (${reviewTasks.length})`" name="review">
-          <el-table :data="reviewTasks" style="width: 100%" @row-click="openTask" highlight-current-row size="small">
+          <el-table stripe :data="reviewTasks" style="width: 100%" @row-click="openTask" highlight-current-row size="small">
             <el-table-column prop="task_no" label="编号" width="160" class-name="col-task-no" />
             <el-table-column prop="title" label="任务" min-width="180" show-overflow-tooltip/>
             <el-table-column label="阶段" width="100">
@@ -119,7 +119,7 @@ function isOverdue(task) {
           <EmptyState v-if="reviewTasks.length === 0" text="暂无待审核任务" />
         </el-tab-pane>
         <el-tab-pane :label="`已完成 (${doneTasks.length})`" name="done">
-          <el-table :data="doneTasks" style="width: 100%" @row-click="openTask" highlight-current-row size="small">
+          <el-table stripe :data="doneTasks" style="width: 100%" @row-click="openTask" highlight-current-row size="small">
             <el-table-column prop="task_no" label="编号" width="160" class-name="col-task-no" />
             <el-table-column prop="title" label="任务" min-width="180" show-overflow-tooltip/>
             <el-table-column label="阶段" width="100">
@@ -135,7 +135,7 @@ function isOverdue(task) {
               超期 ({{ overdueTasks.length }})
             </span>
           </template>
-          <el-table :data="overdueTasks" style="width: 100%" @row-click="openTask" highlight-current-row size="small">
+          <el-table stripe :data="overdueTasks" style="width: 100%" @row-click="openTask" highlight-current-row size="small">
             <el-table-column prop="task_no" label="编号" width="160" class-name="col-task-no" />
             <el-table-column prop="title" label="任务" min-width="180" show-overflow-tooltip/>
             <el-table-column label="阶段" width="100">

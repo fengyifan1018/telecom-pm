@@ -107,7 +107,7 @@ function onRefresh() { fetchData() }
 
 <template>
   <div v-loading="loading">
-    <el-table :data="tasks" size="small" @row-click="openTask" @sort-change="onSortChange"
+    <el-table stripe :data="tasks" size="small" @row-click="openTask" @sort-change="onSortChange"
               highlight-current-row style="cursor: pointer">
       <el-table-column prop="task_no" label="编号" width="160" />
       <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />

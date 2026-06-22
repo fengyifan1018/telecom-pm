@@ -131,7 +131,7 @@ async function handleDelete(row, e) {
       </div>
 
       <el-skeleton v-if="loading" :rows="6" animated style="padding: 8px 0" />
-      <el-table v-else :data="projects" @row-click="goDetail" highlight-current-row style="cursor: pointer">
+      <el-table stripe v-else :data="projects" @row-click="goDetail" highlight-current-row style="cursor: pointer">
         <template #empty>
           <EmptyState text="暂无项目">
             <el-button type="primary" @click="showCreate = true">新建项目</el-button>

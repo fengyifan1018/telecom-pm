@@ -97,3 +97,14 @@ body {
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+/* ===== 表格统一风格（适配主题，所有表格自动套用）===== */
+.el-table {
+  --el-table-border-color: var(--el-border-color-light);
+  --el-table-header-bg-color: var(--el-fill-color-light);
+  --el-table-header-text-color: var(--el-text-color-secondary);
+  --el-table-row-hover-bg-color: var(--el-color-primary-light-9);
+}
+.el-table th.el-table__cell {
+  font-weight: 600;
+}
