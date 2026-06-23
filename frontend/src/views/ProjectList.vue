@@ -145,9 +145,9 @@ async function handleDelete(row, e) {
         <el-table-column prop="product_type" label="产品线" width="90">
           <template #default="{ row }">{{ PRODUCT_TYPE_MAP[row.product_type] || row.product_type }}</template>
         </el-table-column>
-        <el-table-column label="计划周期" width="180">
+        <el-table-column label="计划周期" width="210">
           <template #default="{ row }">
-            <span v-if="row.planned_start || row.planned_end">
+            <span v-if="row.planned_start || row.planned_end" style="white-space: nowrap">
               {{ row.planned_start || '?' }} ~ {{ row.planned_end || '?' }}
             </span>
             <span v-else style="color: var(--el-text-color-placeholder)">-</span>
