@@ -226,6 +226,9 @@ async function handleDelete(row, e) {
         <el-table-column prop="pm_name" label="项目经理" width="90">
           <template #default="{ row }">{{ row.pm_name || '-' }}</template>
         </el-table-column>
+        <el-table-column prop="sales_name" label="销售" width="90">
+          <template #default="{ row }">{{ row.sales_name || '-' }}</template>
+        </el-table-column>
         <el-table-column prop="created_at" label="创建时间" width="110">
           <template #default="{ row }"><span class="num">{{ formatDate(row.created_at) }}</span></template>
         </el-table-column>
