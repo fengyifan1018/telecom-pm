@@ -18,6 +18,14 @@ export const PRODUCT_TYPE_MAP = {
   sdwan: 'SD-WAN',
 }
 
+// 产品线标签色（el-tag type，统一走主题语义色）
+export const PRODUCT_TYPE_TAG = {
+  dia: 'primary',
+  transmission: 'success',
+  dark_fiber: 'warning',
+  sdwan: 'info',
+}
+
 export const PHASE_MAP = {
   project_init: '项目立项',
   resource_confirm: '资源确认',
