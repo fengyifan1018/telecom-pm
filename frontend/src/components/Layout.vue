@@ -178,7 +178,7 @@ onMounted(() => {
 
     <el-container>
       <!-- Header -->
-      <el-header :style="isMobile ? 'display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid #eee' : 'display:flex;align-items:center;justify-content:flex-end;gap:16px;border-bottom:1px solid #eee'">
+      <el-header :style="isMobile ? 'display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid #eee;background:#fff' : 'display:flex;align-items:center;justify-content:flex-end;gap:16px;border-bottom:1px solid #eee;background:#fff'">
         <!-- Mobile: hamburger -->
         <el-button v-if="isMobile" text @click="showMobileNav = true" style="padding: 4px">
           <el-icon :size="20"><Fold /></el-icon>

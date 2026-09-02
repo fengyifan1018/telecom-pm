@@ -4,30 +4,49 @@ import EmptyState from '../components/EmptyState.vue'
 import TaskListView from '../components/TaskListView.vue'
 import { todayStr } from '../utils/format'
 import { ref, computed, watch, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { listTasks, startTask, submitTask, approveTask, listUsers } from '../api/tasks'
 import { listProjects } from '../api/projects'
 import { STATUS_MAP, PHASE_MAP } from '../utils/constants'
 import { ElMessage } from 'element-plus'
 
+const route = useRoute()
 const router = useRouter()
+// query 取值：重复 key 取第一个
+const q1 = (k) => {
+  const v = route.query[k]
+  return Array.isArray(v) ? v[0] : v
+}
 const tasks = ref([])
 const projects = ref([])
 const users = ref([])
 const loading = ref(true)
 
-// 视图模式（持久化）
-const viewMode = ref(localStorage.getItem('task-view-mode') || 'kanban')
+// 视图模式（localStorage 持久化；URL 显式携带 ?view= 时优先）
+const viewMode = ref(['kanban', 'list'].includes(q1('view')) ? q1('view') : (localStorage.getItem('task-view-mode') || 'kanban'))
 watch(viewMode, (v) => localStorage.setItem('task-view-mode', v))
 
-// 共享筛选
-const filterProject = ref('')
-const filterPhase = ref('')
-const filterAssignee = ref('')
-const filterKeyword = ref('')
-const filterPriority = ref('')
-const filterOverdue = ref(false)
-const filterStatus = ref([]) // 仅列表视图用
+// 共享筛选（从 URL 初始化，变化时写回 URL）
+const filterProject = ref(q1('project_id') ? Number(q1('project_id')) : '')
+const filterPhase = ref(q1('phase') || '')
+const filterAssignee = ref(q1('assignee_id') ? Number(q1('assignee_id')) : '')
+const filterKeyword = ref(q1('keyword') || '')
+const filterPriority = ref(q1('priority') ? Number(q1('priority')) : '')
+const filterOverdue = ref(q1('overdue') === '1' || q1('overdue') === 'true')
+const filterStatus = ref(q1('status') ? q1('status').split(',') : []) // 仅列表视图用
+
+// 筛选状态同步到 URL（可分享/刷新不丢）
+function syncQuery() {
+  const q = {}
+  if (filterProject.value) q.project_id = String(filterProject.value)
+  if (filterPhase.value) q.phase = filterPhase.value
+  if (filterAssignee.value) q.assignee_id = String(filterAssignee.value)
+  if (filterKeyword.value) q.keyword = filterKeyword.value
+  if (filterPriority.value) q.priority = String(filterPriority.value)
+  if (filterOverdue.value) q.overdue = '1'
+  if (filterStatus.value.length) q.status = filterStatus.value.join(',')
+  router.replace({ query: q }).catch(() => {})
+}
 
 // 传给列表组件的筛选对象
 const listFilters = computed(() => ({
@@ -68,26 +87,40 @@ const availablePhases = computed(() => {
   return phases.map(p => ({ key: p, label: PHASE_MAP[p] || p }))
 })
 
-// 看板取数：服务端筛选（不传 status，列本身即状态）
+// 看板取数：服务端筛选（不传 status，列本身即状态）；分页拉全量，超出上限提示
+const KANBAN_MAX = 1000
 async function fetchKanban() {
   loading.value = true
   try {
-    const params = { page_size: 200 }
-    if (filterProject.value) params.project_id = filterProject.value
-    if (filterPhase.value) params.phase = filterPhase.value
-    if (filterAssignee.value) params.assignee_id = filterAssignee.value
-    if (filterKeyword.value) params.keyword = filterKeyword.value
-    if (filterPriority.value) params.priority = filterPriority.value
-    if (filterOverdue.value) params.overdue = true
-    const tRes = await listTasks(params)
-    tasks.value = tRes.data.items
+    const base = {}
+    if (filterProject.value) base.project_id = filterProject.value
+    if (filterPhase.value) base.phase = filterPhase.value
+    if (filterAssignee.value) base.assignee_id = filterAssignee.value
+    if (filterKeyword.value) base.keyword = filterKeyword.value
+    if (filterPriority.value) base.priority = filterPriority.value
+    if (filterOverdue.value) base.overdue = true
+    const pageSize = 200
+    const items = []
+    let total = 0
+    let page = 1
+    do {
+      const tRes = await listTasks({ ...base, page, page_size: pageSize })
+      total = tRes.data.total
+      items.push(...tRes.data.items)
+      page += 1
+    } while (items.length < total && items.length < KANBAN_MAX)
+    if (items.length < total) {
+      ElMessage.warning(`任务共 ${total} 条，看板仅加载前 ${items.length} 条，请用筛选缩小范围`)
+    }
+    tasks.value = items
   } finally {
     loading.value = false
   }
 }
 
-// 仅看板模式下，筛选变化时重新取数
-watch([filterProject, filterPhase, filterAssignee, filterKeyword, filterPriority, filterOverdue], () => {
+// 仅看板模式下，筛选变化时重新取数；同时把筛选同步到 URL
+watch([filterProject, filterPhase, filterAssignee, filterKeyword, filterPriority, filterOverdue, filterStatus], () => {
+  syncQuery()
   if (viewMode.value === 'kanban') fetchKanban()
 })
 watch(viewMode, (v) => { if (v === 'kanban') fetchKanban() })

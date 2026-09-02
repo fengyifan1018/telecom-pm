@@ -15,10 +15,16 @@ router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 @router.get("/my-workbench")
 async def my_workbench(
+    scope: str = "mine",
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    base = select(func.count()).select_from(Task).where(Task.assignee_id == current_user.id)
+    # 管理员/项目经理/运营可查看全局任务统计，其他角色强制只看自己
+    if scope == "all" and current_user.role not in ("admin", "pm", "operations"):
+        scope = "mine"
+    base = select(func.count()).select_from(Task)
+    if scope != "all":
+        base = base.where(Task.assignee_id == current_user.id)
 
     pending = (await db.execute(base.where(Task.status == "pending"))).scalar() or 0
     active = (await db.execute(base.where(Task.status == "active"))).scalar() or 0

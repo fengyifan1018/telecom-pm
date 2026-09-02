@@ -76,3 +76,8 @@ export const PRIORITY_MAP = {
   4: { label: '低', type: 'info' },
   5: { label: '最低', type: 'info' },
 }
+
+export const PRIORITY_OPTIONS = [
+  { value: 1, label: '最高' }, { value: 2, label: '高' }, { value: 3, label: '中' },
+  { value: 4, label: '低' }, { value: 5, label: '最低' },
+]

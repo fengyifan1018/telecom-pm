@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { getProject, initProject, updateProject, suspendProject, resumeProject, deleteProject } from '../api/projects'
-import { listTasks, listUsers } from '../api/tasks'
+import { listTasks, listUsers, assignTask } from '../api/tasks'
 import { STATUS_MAP, PRODUCT_TYPE_MAP, PHASE_MAP, PHASE_ORDER_BY_PRODUCT, PHASE_ORDER } from '../utils/constants'
 import PhaseProgress from '../components/PhaseProgress.vue'
 import TaskDrawer from '../components/TaskDrawer.vue'
@@ -41,6 +41,17 @@ const deliverableUploadTitle = ref('')
 const deliverableUploadPhase = ref('')
 const deliverableUploadRef = ref(null)
 const pmUsers = ref([])
+const members = ref([])
+// 任务行内快捷指派（仅 PM/管理员）
+const canAssign = computed(() => ['pm', 'admin'].includes(auth.user?.role))
+async function quickAssign(row, userId) {
+  if (!userId) return
+  try {
+    await assignTask(row.id, { assignee_id: userId })
+    ElMessage.success('已指派')
+    await fetchData()
+  } catch { /* 错误由拦截器统一提示 */ }
+}
 
 const groupedTasks = computed(() => {
   const order = PHASE_ORDER_BY_PRODUCT[project.value?.product_type] || PHASE_ORDER
@@ -62,6 +73,7 @@ async function fetchData() {
       listUsers(),
     ])
     pmUsers.value = (uRes.data || []).filter(u => u.role === 'pm')
+    members.value = uRes.data || []
     project.value = pRes.data
     tasks.value = tRes.data.items
     changeRequests.value = crRes.data
@@ -91,6 +103,12 @@ async function handleInit() {
 function openTask(task) {
   selectedTask.value = task
   drawerVisible.value = true
+}
+
+// 抽屉内上一条/下一条导航
+function onNavigateTask(id) {
+  const t = tasks.value.find(t => t.id === id)
+  if (t) selectedTask.value = t
 }
 
 function openEdit() {
@@ -403,10 +421,18 @@ async function handleRejectCR() {
                     <el-tag :type="STATUS_MAP[row.status]?.type" size="small">{{ STATUS_MAP[row.status]?.label }}</el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column label="负责人" width="90">
+                <el-table-column label="负责人" width="130">
                   <template #default="{ row }">
-                    <span v-if="row.assignee_name">{{ row.assignee_name }}</span>
-                    <span v-else style="color: var(--el-text-color-placeholder)">-</span>
+                    <div v-if="canAssign" @click.stop>
+                      <el-select :model-value="row.assignee_id" size="small" placeholder="点击指派"
+                                 style="width: 110px" @change="(v) => quickAssign(row, v)">
+                        <el-option v-for="u in members" :key="u.id" :label="u.display_name" :value="u.id" />
+                      </el-select>
+                    </div>
+                    <template v-else>
+                      <span v-if="row.assignee_name">{{ row.assignee_name }}</span>
+                      <span v-else style="color: var(--el-text-color-placeholder)">-</span>
+                    </template>
                   </template>
                 </el-table-column>
                 <el-table-column prop="planned_end" label="截止" width="110" />
@@ -454,7 +480,8 @@ async function handleRejectCR() {
     </template>
 
     <!-- Task Drawer -->
-    <TaskDrawer v-model:visible="drawerVisible" :task="selectedTask" @refresh="onRefresh" />
+    <TaskDrawer v-model:visible="drawerVisible" :task="selectedTask" :peer-ids="tasks.map(t => t.id)"
+                @navigate="onNavigateTask" @refresh="onRefresh" />
 
     <!-- Edit Dialog -->
     <el-dialog v-model="showEdit" title="编辑项目" width="480px">

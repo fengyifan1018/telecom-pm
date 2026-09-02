@@ -73,7 +73,7 @@ async function handleLogin() {
         </el-form>
         <p v-if="isDev" class="login__demo">演示账号：pm01 / 123456</p>
       </div>
-      <div class="login__panel-foot">京ICP备 00000000 号</div>
+      <div class="login__panel-foot">通信项目管理系统</div>
     </main>
   </div>
 </template>

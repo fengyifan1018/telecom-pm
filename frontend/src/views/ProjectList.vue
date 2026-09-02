@@ -3,7 +3,7 @@ import PageHeader from '../components/PageHeader.vue'
 import EmptyState from '../components/EmptyState.vue'
 import { formatDate } from '../utils/format'
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { listProjects, createProject, listCustomers, deleteProject } from '../api/projects'
 import { listUsers, getOverview } from '../api/tasks'
 import { STATUS_MAP, PRODUCT_TYPE_MAP, PRODUCT_TYPE_TAG, PRIORITY_MAP, ROLE_MAP } from '../utils/constants'
@@ -11,13 +11,27 @@ import { useAuthStore } from '../stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 const isSales = computed(() => auth.user?.role === 'sales')
 const isAdmin = computed(() => auth.user?.role === 'admin')
 const projects = ref([])
 const total = ref(0)
 const loading = ref(false)
-const filters = ref({ product_type: '', status: '', search: '', page: 1, page_size: 15 })
+
+// 筛选从 URL 初始化，变化时写回（可分享/刷新不丢）
+const q1 = (k) => {
+  const v = route.query[k]
+  return Array.isArray(v) ? v[0] : (v || '')
+}
+const filters = ref({ product_type: q1('product_type'), status: q1('status'), search: q1('search'), page: 1, page_size: 15 })
+function syncQuery() {
+  const q = {}
+  if (filters.value.search) q.search = filters.value.search
+  if (filters.value.product_type) q.product_type = filters.value.product_type
+  if (filters.value.status) q.status = filters.value.status
+  router.replace({ query: q }).catch(() => {})
+}
 
 const overview = ref(null)
 const stats = computed(() => {
@@ -83,8 +97,9 @@ onMounted(async () => {
   users.value = uRes.data
   overview.value = oRes.data
 })
-watch(() => filters.value.product_type, fetchProjects)
-watch(() => filters.value.status, fetchProjects)
+watch(() => filters.value.product_type, () => { syncQuery(); fetchProjects() })
+watch(() => filters.value.status, () => { syncQuery(); fetchProjects() })
+watch(() => filters.value.search, syncQuery)
 
 function handlePageChange(page) {
   filters.value.page = page
@@ -186,8 +201,9 @@ async function handleDelete(row, e) {
       <el-skeleton v-if="loading" :rows="6" animated style="padding: 8px 0" />
       <el-table v-else stripe :data="projects" @row-click="goDetail" highlight-current-row class="project-table">
         <template #empty>
-          <EmptyState text="暂无项目">
-            <el-button type="primary" @click="showCreate = true">新建项目</el-button>
+          <EmptyState :text="hasFilter ? '没有符合筛选条件的项目' : '暂无项目'">
+            <el-button v-if="hasFilter" size="small" @click="resetFilters">清除筛选</el-button>
+            <el-button v-else-if="auth.hasPermission('project.create')" type="primary" size="small" @click="showCreate = true">新建项目</el-button>
           </EmptyState>
         </template>
         <el-table-column prop="project_no" label="项目编号" width="160" />
@@ -226,7 +242,7 @@ async function handleDelete(row, e) {
         <el-table-column prop="pm_name" label="项目经理" width="90">
           <template #default="{ row }">{{ row.pm_name || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="sales_name" label="销售" width="90">
+        <el-table-column prop="sales_name" label="销售" width="110" show-overflow-tooltip>
           <template #default="{ row }">{{ row.sales_name || '-' }}</template>
         </el-table-column>
         <el-table-column prop="created_at" label="创建时间" width="110">
