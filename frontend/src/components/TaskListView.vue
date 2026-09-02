@@ -177,7 +177,7 @@ async function saveField(row, patch) {
                             style="width: 110px" @change="(v) => saveField(row, { planned_end: v })" @blur="stopEdit" />
           </div>
           <span v-else @click.stop="startEdit(row, 'planned_end')"
-                :style="{ color: isOverdue(row) ? '#f56c6c' : '', fontWeight: isOverdue(row) ? 'bold' : '', cursor: canStart(row) ? 'pointer' : '' }">
+                :style="{ color: isOverdue(row) ? 'var(--el-color-danger)' : '', fontWeight: isOverdue(row) ? 'bold' : '', cursor: canStart(row) ? 'pointer' : '' }">
             {{ row.planned_end || '—' }}
           </span>
         </template>

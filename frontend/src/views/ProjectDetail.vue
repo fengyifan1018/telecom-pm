@@ -407,7 +407,7 @@ async function handleRejectCR() {
                   <el-button size="small" text type="primary">+ 上传交付物</el-button>
                 </el-upload>
               </div>
-              <div v-if="deliverablesByPhase[group.phase]?.length" style="margin-bottom: 8px; padding: 6px 8px; background: #f0f9eb; border-radius: 4px; font-size: 12px">
+              <div v-if="deliverablesByPhase[group.phase]?.length" style="margin-bottom: 8px; padding: 6px 8px; background: var(--el-color-success-light-9); border-radius: 4px; font-size: 12px">
                 <span style="color: var(--el-color-success); font-weight: bold">交付物：</span>
                 <span v-for="d in deliverablesByPhase[group.phase]" :key="d.id" style="margin-left: 8px">
                   <a href="#" @click.prevent="handleDownloadDeliverable(d)" style="color: var(--el-color-primary); text-decoration: none">{{ d.title }}</a>

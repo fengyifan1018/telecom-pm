@@ -270,7 +270,7 @@ async function onDrop(event, colKey) {
   border: 2px solid transparent;
 }
 .kanban-column.drag-over {
-  background: #ecf5ff;
+  background: var(--el-color-primary-light-9);
   border-color: var(--el-color-primary);
 }
 .kanban-header {
@@ -279,12 +279,12 @@ async function onDrop(event, colKey) {
   gap: 8px;
   margin-bottom: 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #e4e7ed;
+  border-bottom: 1px solid var(--el-border-color);
 }
 .kanban-count {
   font-size: 12px;
   color: var(--el-text-color-secondary);
-  background: #e4e7ed;
+  background: var(--el-border-color);
   border-radius: 10px;
   padding: 0 6px;
 }
@@ -299,13 +299,13 @@ async function onDrop(event, colKey) {
   background: #fff;
   border-radius: 6px;
   padding: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-card);
   cursor: pointer;
   transition: box-shadow 0.2s, opacity 0.2s;
   position: relative;
 }
 .kanban-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-pop);
 }
 .kanban-card.draggable {
   cursor: grab;
@@ -314,7 +314,7 @@ async function onDrop(event, colKey) {
   opacity: 0.4;
 }
 .card-project {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--el-text-color-secondary);
   margin-bottom: 4px;
 }
@@ -331,10 +331,10 @@ async function onDrop(event, colKey) {
 }
 .card-assignee {
   color: var(--el-color-primary);
-  font-size: 11px;
+  font-size: 12px;
 }
 .card-due {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--el-text-color-secondary);
   margin-top: 4px;
 }

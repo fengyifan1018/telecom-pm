@@ -223,7 +223,7 @@ async function toggleActive(t) {
                     <div v-for="task in phase.tasks" :key="task.title" class="phase-task-item">
                       <span :class="{ 'is-required': task.required }">{{ task.required ? '●' : '○' }}</span>
                       {{ task.title }}
-                      <span style="color: var(--el-text-color-placeholder); margin-left: auto; font-size: 11px">{{ task.estimated_days }}天</span>
+                      <span style="color: var(--el-text-color-placeholder); margin-left: auto; font-size: 12px">{{ task.estimated_days }}天</span>
                     </div>
                   </div>
                 </div>
@@ -411,7 +411,7 @@ async function toggleActive(t) {
   gap: 0;
 }
 .phase-block {
-  background: #f9fafc;
+  background: var(--el-fill-color-lighter);
   border: 1px solid #ebeef5;
   border-top: 3px solid var(--el-color-primary);
   border-radius: 6px;
@@ -436,7 +436,7 @@ async function toggleActive(t) {
   flex-shrink: 0;
 }
 .phase-block-name { font-weight: bold; font-size: 13px; }
-.phase-deps { font-size: 11px; color: var(--el-text-color-secondary); margin-bottom: 6px; }
+.phase-deps { font-size: 12px; color: var(--el-text-color-secondary); margin-bottom: 6px; }
 .phase-tasks { display: flex; flex-direction: column; gap: 3px; }
 .phase-task-item {
   font-size: 12px;
@@ -453,7 +453,7 @@ async function toggleActive(t) {
 
 /* Editor */
 .editor-meta {
-  background: #f9fafc;
+  background: var(--el-fill-color-lighter);
   border-radius: 6px;
   padding: 12px 16px 4px;
   margin-bottom: 8px;
@@ -466,7 +466,7 @@ async function toggleActive(t) {
   align-items: center;
   gap: 4px;
   padding: 10px 12px;
-  background: #f0f4ff;
+  background: var(--el-color-primary-light-9);
   border-radius: 6px;
   margin-bottom: 12px;
   min-height: 48px;
@@ -479,7 +479,7 @@ async function toggleActive(t) {
   display: flex;
   align-items: center;
   gap: 4px;
-  background: #fff;
+  background: var(--el-bg-color);
   border: 1.5px solid var(--el-color-primary);
   border-radius: 20px;
   padding: 3px 10px 3px 4px;
@@ -490,12 +490,12 @@ async function toggleActive(t) {
   border-radius: 50%;
   background: var(--el-color-primary);
   color: #fff;
-  font-size: 11px;
+  font-size: 12px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
 .strip-name { font-weight: 500; }
-.strip-days { color: var(--el-text-color-secondary); font-size: 11px; }
+.strip-days { color: var(--el-text-color-secondary); font-size: 12px; }
 .strip-arrow { color: var(--el-text-color-placeholder); font-size: 14px; }
 
 /* Phase editor cards */
@@ -512,7 +512,7 @@ async function toggleActive(t) {
   border-left: 4px solid var(--el-color-primary);
   border-radius: 6px;
   padding: 12px 14px;
-  background: #fff;
+  background: var(--el-bg-color);
 }
 .phase-edit-header {
   display: flex;

@@ -60,7 +60,7 @@ const phaseStatus = computed(() => {
   font-weight: bold;
   border: 2px solid var(--el-border-color);
   color: var(--el-text-color-secondary);
-  background: #fff;
+  background: var(--el-bg-color);
   z-index: 1;
 }
 .phase-done {

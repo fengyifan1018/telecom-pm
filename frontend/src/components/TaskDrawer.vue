@@ -18,6 +18,7 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'refresh', 'view-project', 'navigate'])
 
 // 抽屉内上一条/下一条导航（调用方传入当前列表的任务 id 序列）
+const activeTab = ref('detail')
 const navIndex = computed(() => (props.task && props.peerIds.length ? props.peerIds.indexOf(props.task.id) : -1))
 const hasPrev = computed(() => navIndex.value > 0)
 const hasNext = computed(() => navIndex.value >= 0 && navIndex.value < props.peerIds.length - 1)
@@ -407,7 +408,7 @@ function close() {
 </script>
 
 <template>
-  <el-drawer :model-value="visible" @update:model-value="close" :size="isMobile ? '100%' : '550px'" :title="task?.title">
+  <el-drawer :model-value="visible" @update:model-value="close" :size="isMobile ? '100%' : '720px'" :title="task?.title">
     <template v-if="task">
       <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between">
         <el-button v-if="showProjectLink" link type="primary" size="small" @click="emit('view-project', task.project_id)">
@@ -430,71 +431,9 @@ function close() {
           </div>
         </div>
       </div>
-      <div style="margin-bottom: 16px">
-        <el-descriptions :column="2" border size="small">
-          <el-descriptions-item label="编号">{{ task.task_no }}</el-descriptions-item>
-          <el-descriptions-item label="阶段">{{ PHASE_MAP[task.phase] }}</el-descriptions-item>
-          <el-descriptions-item label="状态">
-            <el-tag :type="STATUS_MAP[task.status]?.type" size="small">{{ STATUS_MAP[task.status]?.label }}</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="排期">
-            <el-date-picker
-              v-model="dateRange"
-              type="daterange"
-              size="small"
-              range-separator="~"
-              start-placeholder="开始"
-              end-placeholder="结束"
-              value-format="YYYY-MM-DD"
-              style="width: 220px"
-              @change="handleDateChange"
-            />
-          </el-descriptions-item>
-          <el-descriptions-item label="进度">
-            <div style="display: flex; align-items: center; gap: 8px">
-              <el-slider v-if="canEditProgress" v-model="progressValue" size="small" style="width: 140px"
-                         :format-tooltip="(v) => v + '%'" @change="handleProgressChange" />
-              <el-progress v-else :percentage="task.progress || 0" :stroke-width="8" style="width: 150px" />
-              <span style="font-size: 12px; color: var(--el-text-color-secondary); font-variant-numeric: tabular-nums">{{ progressValue }}%</span>
-            </div>
-          </el-descriptions-item>
-          <el-descriptions-item label="自动排期">
-            <el-switch v-if="canManageRelation" v-model="autoSchedule" size="small" @change="handleAutoScheduleChange" />
-            <span v-else style="font-size: 13px">{{ task.auto_schedule === false ? '手动' : '自动' }}</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="负责人" :span="2">
-            <div style="display: flex; align-items: center; gap: 8px">
-              <el-select
-                v-model="assigneeId"
-                placeholder="选择负责人"
-                size="small"
-                style="width: 180px"
-                filterable
-              >
-                <el-option
-                  v-for="u in users"
-                  :key="u.id"
-                  :label="`${u.display_name} (${ROLE_MAP[u.role] || u.role})`"
-                  :value="u.id"
-                />
-              </el-select>
-              <el-button
-                size="small"
-                type="primary"
-                :loading="assignLoading"
-                :disabled="!assigneeId || assigneeId === task.assignee_id"
-                @click="handleAssign"
-              >指派</el-button>
-            </div>
-            <div v-if="workloadWarning" style="color: var(--el-color-warning); font-size: 12px; margin-top: 4px">
-              ⚠ 该成员当前进行中任务 ≥ 3，工作量较高
-            </div>
-          </el-descriptions-item>
-        </el-descriptions>
-      </div>
 
-      <!-- Actions -->
-      <div style="margin-bottom: 20px; display: flex; gap: 8px; flex-wrap: wrap">
+      <!-- 状态流转操作 -->
+      <div style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap">
         <el-button v-if="task.status === 'pending' && canStart" type="primary" @click="handleStart" :loading="loading">
           开始任务
         </el-button>
@@ -509,138 +448,215 @@ function close() {
         </el-button>
       </div>
 
-      <!-- Attachments -->
-      <el-divider content-position="left">前置与阻塞 ({{ relationTotal }})</el-divider>
-    <div style="margin-bottom: 12px">
-      <template v-for="g in relationGroups" :key="g.key">
-        <div v-if="relations[g.key].length">
-          <div class="relation-group__label">{{ g.label }}</div>
-          <div v-for="item in relations[g.key]" :key="item.relation_id" class="relation-item">
-            <el-tag :type="STATUS_MAP[item.status]?.type" size="small">{{ STATUS_MAP[item.status]?.label }}</el-tag>
-            <span class="relation-item__no">{{ item.task_no }}</span>
-            <span class="relation-item__title">{{ item.title }}</span>
-            <span class="relation-item__project">{{ item.project_name }}</span>
-            <el-button v-if="canManageRelation" link type="danger" size="small" @click="handleDeleteRelation(item.relation_id)">删除</el-button>
+      <el-tabs v-model="activeTab">
+        <!-- 详情：基本信息 + 描述 + 前置与阻塞 -->
+        <el-tab-pane label="详情" name="detail">
+          <div style="margin-bottom: 16px">
+            <el-descriptions :column="2" border size="small">
+              <el-descriptions-item label="编号">{{ task.task_no }}</el-descriptions-item>
+              <el-descriptions-item label="阶段">{{ PHASE_MAP[task.phase] }}</el-descriptions-item>
+              <el-descriptions-item label="状态">
+                <el-tag :type="STATUS_MAP[task.status]?.type" size="small">{{ STATUS_MAP[task.status]?.label }}</el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="排期">
+                <el-date-picker
+                  v-model="dateRange"
+                  type="daterange"
+                  size="small"
+                  range-separator="~"
+                  start-placeholder="开始"
+                  end-placeholder="结束"
+                  value-format="YYYY-MM-DD"
+                  style="width: 240px"
+                  @change="handleDateChange"
+                />
+              </el-descriptions-item>
+              <el-descriptions-item label="进度">
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <el-slider v-if="canEditProgress" v-model="progressValue" size="small" style="width: 160px"
+                             :format-tooltip="(v) => v + '%'" @change="handleProgressChange" />
+                  <el-progress v-else :percentage="task.progress || 0" :stroke-width="8" style="width: 170px" />
+                  <span style="font-size: 12px; color: var(--el-text-color-secondary); font-variant-numeric: tabular-nums">{{ progressValue }}%</span>
+                </div>
+              </el-descriptions-item>
+              <el-descriptions-item label="自动排期">
+                <el-switch v-if="canManageRelation" v-model="autoSchedule" size="small" @change="handleAutoScheduleChange" />
+                <span v-else style="font-size: 13px">{{ task.auto_schedule === false ? '手动' : '自动' }}</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="负责人" :span="2">
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <el-select
+                    v-model="assigneeId"
+                    placeholder="选择负责人"
+                    size="small"
+                    style="width: 200px"
+                    filterable
+                  >
+                    <el-option
+                      v-for="u in users"
+                      :key="u.id"
+                      :label="`${u.display_name} (${ROLE_MAP[u.role] || u.role})`"
+                      :value="u.id"
+                    />
+                  </el-select>
+                  <el-button
+                    size="small"
+                    type="primary"
+                    :loading="assignLoading"
+                    :disabled="!assigneeId || assigneeId === task.assignee_id"
+                    @click="handleAssign"
+                  >指派</el-button>
+                </div>
+                <div v-if="workloadWarning" style="color: var(--el-color-warning); font-size: 12px; margin-top: 4px">
+                  ⚠ 该成员当前进行中任务 ≥ 3，工作量较高
+                </div>
+              </el-descriptions-item>
+            </el-descriptions>
           </div>
-        </div>
-      </template>
-      <div v-if="relationTotal === 0" style="color: var(--el-text-color-secondary); font-size: 13px; margin-bottom: 8px">暂无关联任务</div>
-      <div v-if="canManageRelation" style="display: flex; gap: 8px; margin-top: 8px">
-        <el-select v-model="newRelation.relation_type" size="small" style="width: 130px">
-          <el-option v-for="t in relationTypes" :key="t.value" :label="t.label" :value="t.value" />
-        </el-select>
-        <el-select v-model="newRelation.related_task_id" size="small" style="width: 250px" filterable remote clearable
-                   :remote-method="searchRelationTasks" :loading="relationSearching"
-                   placeholder="搜索任务编号/标题后添加">
-          <el-option v-for="o in relationOptions" :key="o.id" :label="o.label" :value="o.id" />
-        </el-select>
-        <el-button size="small" type="primary" @click="handleAddRelation">添加</el-button>
-      </div>
-    </div>
 
-    <el-divider content-position="left">附件 ({{ attachments.length }})</el-divider>
-      <div style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap">
-        <el-upload
-          :auto-upload="false"
-          :show-file-list="false"
-          :on-change="(file) => handleUpload(file.raw)"
-          style="display: inline-block"
-        >
-          <el-button size="small" type="primary" :loading="uploadLoading">上传文件</el-button>
-        </el-upload>
-        <!-- 拍照上传（移动端） -->
-        <el-button v-if="isMobile" size="small" type="success" :loading="uploadLoading" @click="triggerCamera">
-          📷 拍照上传
-        </el-button>
-        <input
-          ref="cameraInput"
-          type="file"
-          accept="image/*"
-          capture="environment"
-          style="display: none"
-          @change="handleCameraChange"
-        />
-      </div>
-      <div v-if="attachments.length === 0" style="color: var(--el-text-color-secondary); font-size: 13px; margin-bottom: 12px">暂无附件</div>
-      <div v-for="att in attachments" :key="att.id" class="attachment-item">
-        <el-tooltip v-if="isImage(att)" placement="right" effect="light" :hide-after="0">
-          <template #content>
-            <img
-              v-if="previewUrls[att.id]"
-              :src="previewUrls[att.id]"
-              style="max-width: 260px; max-height: 260px; display: block; border-radius: 4px"
-            />
-            <span v-else style="color: var(--el-text-color-secondary); font-size: 12px">加载中...</span>
+          <div v-if="task.description" class="detail-block">
+            <div class="section-label">任务描述</div>
+            <div class="task-description">{{ task.description }}</div>
+          </div>
+
+          <div class="section-label">前置与阻塞 ({{ relationTotal }})</div>
+          <template v-for="g in relationGroups" :key="g.key">
+            <div v-if="relations[g.key].length">
+              <div class="relation-group__label">{{ g.label }}</div>
+              <div v-for="item in relations[g.key]" :key="item.relation_id" class="relation-item">
+                <el-tag :type="STATUS_MAP[item.status]?.type" size="small">{{ STATUS_MAP[item.status]?.label }}</el-tag>
+                <span class="relation-item__no">{{ item.task_no }}</span>
+                <span class="relation-item__title">{{ item.title }}</span>
+                <span class="relation-item__project">{{ item.project_name }}</span>
+                <el-button v-if="canManageRelation" link type="danger" size="small" @click="handleDeleteRelation(item.relation_id)">删除</el-button>
+              </div>
+            </div>
           </template>
-          <a href="#" class="attachment-name" @click.prevent="handleDownload(att)" @mouseenter="loadPreview(att)">
-            {{ att.original_name }}
-          </a>
-        </el-tooltip>
-        <a v-else href="#" class="attachment-name" @click.prevent="handleDownload(att)">{{ att.original_name }}</a>
-        <span class="attachment-size">{{ formatSize(att.size) }}</span>
-        <span class="attachment-time">{{ formatDateTime(att.created_at) }}</span>
-        <el-button size="small" text type="danger" @click="handleDeleteAttachment(att)">删除</el-button>
-      </div>
-
-      <!-- Escalations -->
-      <el-divider content-position="left">问题升级 ({{ escalations.length }})</el-divider>
-      <div style="margin-bottom: 12px">
-        <el-button size="small" type="danger" plain @click="showEscalationForm = !showEscalationForm">
-          {{ showEscalationForm ? '取消' : '发起升级' }}
-        </el-button>
-      </div>
-      <div v-if="showEscalationForm" style="margin-bottom: 12px; padding: 12px; background: #fef0f0; border-radius: 4px">
-        <el-select v-model="escalationForm.severity" size="small" style="width: 120px; margin-bottom: 8px">
-          <el-option label="低" value="low" />
-          <el-option label="中" value="medium" />
-          <el-option label="高" value="high" />
-          <el-option label="紧急" value="critical" />
-        </el-select>
-        <el-input v-model="escalationForm.description" type="textarea" :rows="2" placeholder="描述遇到的问题..." style="margin-bottom: 8px" />
-        <el-button size="small" type="danger" @click="handleCreateEscalation">提交</el-button>
-      </div>
-      <div v-for="esc in escalations" :key="esc.id" class="escalation-item">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px">
-          <el-tag :type="esc.severity === 'critical' ? 'danger' : esc.severity === 'high' ? 'warning' : 'info'" size="small">
-            {{ { low: '低', medium: '中', high: '高', critical: '紧急' }[esc.severity] }}
-          </el-tag>
-          <el-tag :type="esc.status === 'resolved' ? 'success' : 'danger'" size="small">
-            {{ esc.status === 'resolved' ? '已解决' : '待处理' }}
-          </el-tag>
-          <span style="font-size: 12px; color: var(--el-text-color-secondary)">{{ formatDateTime(esc.created_at) }}</span>
-        </div>
-        <div style="font-size: 13px; margin-bottom: 4px">{{ esc.description }}</div>
-        <div v-if="esc.resolution" style="font-size: 13px; color: var(--el-color-success)">解决: {{ esc.resolution }}</div>
-        <el-button v-if="esc.status !== 'resolved'" size="small" text type="success" @click="handleResolveEscalation(esc)">
-          标记解决
-        </el-button>
-      </div>
-
-      <!-- Comments -->
-      <el-divider content-position="left">评论 ({{ comments.length }})</el-divider>
-      <div style="max-height: 200px; overflow-y: auto; margin-bottom: 12px">
-        <div v-for="c in comments" :key="c.id" style="margin-bottom: 12px; padding: 8px; background: #f9f9f9; border-radius: 4px">
-          <div style="font-size: 12px; color: #999; margin-bottom: 4px">
-            {{ c.user_name || `用户${c.user_id}` }} · {{ formatDateTime(c.created_at) }}
+          <div v-if="relationTotal === 0" style="color: var(--el-text-color-secondary); font-size: 13px; margin-bottom: 8px">暂无关联任务</div>
+          <div v-if="canManageRelation" style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap">
+            <el-select v-model="newRelation.relation_type" size="small" style="width: 130px">
+              <el-option v-for="t in relationTypes" :key="t.value" :label="t.label" :value="t.value" />
+            </el-select>
+            <el-select v-model="newRelation.related_task_id" size="small" style="width: 280px" filterable remote clearable
+                       :remote-method="searchRelationTasks" :loading="relationSearching"
+                       placeholder="搜索任务编号/标题后添加">
+              <el-option v-for="o in relationOptions" :key="o.id" :label="o.label" :value="o.id" />
+            </el-select>
+            <el-button size="small" type="primary" @click="handleAddRelation">添加</el-button>
           </div>
-          <div style="font-size: 14px">{{ c.content }}</div>
-        </div>
-        <EmptyState v-if="comments.length === 0" text="暂无评论" :size="36" />
-      </div>
-      <div style="display: flex; gap: 8px">
-        <el-input v-model="newComment" placeholder="输入评论，支持 @用户名 提及..." @keyup.enter="handleComment" />
-        <el-button type="primary" @click="handleComment">发送</el-button>
-      </div>
+        </el-tab-pane>
 
-      <!-- Transitions -->
-      <el-divider content-position="left">流转记录</el-divider>
-      <el-timeline>
-        <el-timeline-item v-for="t in transitions" :key="t.id" :timestamp="formatDateTime(t.created_at)">
-          <span style="color: var(--el-color-primary)">{{ t.operator_name }}</span>:
-          {{ t.from_status || '(创建)' }} → {{ t.to_status }}
-          <span v-if="t.remark" style="color: var(--el-color-warning); margin-left: 8px">{{ t.remark }}</span>
-        </el-timeline-item>
-      </el-timeline>
+        <!-- 评论 -->
+        <el-tab-pane :label="`评论 (${comments.length})`" name="comments">
+          <div style="max-height: 480px; overflow-y: auto; margin-bottom: 12px">
+            <div v-for="c in comments" :key="c.id" class="comment-item">
+              <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-bottom: 4px">
+                {{ c.user_name || `用户${c.user_id}` }} · {{ formatDateTime(c.created_at) }}
+              </div>
+              <div style="font-size: 14px">{{ c.content }}</div>
+            </div>
+            <EmptyState v-if="comments.length === 0" text="暂无评论" :size="36" />
+          </div>
+          <div style="display: flex; gap: 8px">
+            <el-input v-model="newComment" placeholder="输入评论，支持 @用户名 提及..." @keyup.enter="handleComment" />
+            <el-button type="primary" @click="handleComment">发送</el-button>
+          </div>
+        </el-tab-pane>
+
+        <!-- 附件 -->
+        <el-tab-pane :label="`附件 (${attachments.length})`" name="attachments">
+          <div style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap">
+            <el-upload
+              :auto-upload="false"
+              :show-file-list="false"
+              :on-change="(file) => handleUpload(file.raw)"
+              style="display: inline-block"
+            >
+              <el-button size="small" type="primary" :loading="uploadLoading">上传文件</el-button>
+            </el-upload>
+            <!-- 拍照上传（移动端） -->
+            <el-button v-if="isMobile" size="small" type="success" :loading="uploadLoading" @click="triggerCamera">
+              📷 拍照上传
+            </el-button>
+            <input
+              ref="cameraInput"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              style="display: none"
+              @change="handleCameraChange"
+            />
+          </div>
+          <div v-if="attachments.length === 0" style="color: var(--el-text-color-secondary); font-size: 13px; margin-bottom: 12px">暂无附件</div>
+          <div v-for="att in attachments" :key="att.id" class="attachment-item">
+            <el-tooltip v-if="isImage(att)" placement="right" effect="light" :hide-after="0">
+              <template #content>
+                <img
+                  v-if="previewUrls[att.id]"
+                  :src="previewUrls[att.id]"
+                  style="max-width: 260px; max-height: 260px; display: block; border-radius: 4px"
+                />
+                <span v-else style="color: var(--el-text-color-secondary); font-size: 12px">加载中...</span>
+              </template>
+              <a href="#" class="attachment-name" @click.prevent="handleDownload(att)" @mouseenter="loadPreview(att)">
+                {{ att.original_name }}
+              </a>
+            </el-tooltip>
+            <a v-else href="#" class="attachment-name" @click.prevent="handleDownload(att)">{{ att.original_name }}</a>
+            <span class="attachment-size">{{ formatSize(att.size) }}</span>
+            <span class="attachment-time">{{ formatDateTime(att.created_at) }}</span>
+            <el-button size="small" text type="danger" @click="handleDeleteAttachment(att)">删除</el-button>
+          </div>
+        </el-tab-pane>
+
+        <!-- 问题升级 -->
+        <el-tab-pane :label="`问题 (${escalations.length})`" name="escalations">
+          <div style="margin-bottom: 12px">
+            <el-button size="small" type="danger" plain @click="showEscalationForm = !showEscalationForm">
+              {{ showEscalationForm ? '取消' : '发起升级' }}
+            </el-button>
+          </div>
+          <div v-if="showEscalationForm" style="margin-bottom: 12px; padding: 12px; background: var(--el-color-danger-light-9); border-radius: 4px">
+            <el-select v-model="escalationForm.severity" size="small" style="width: 120px; margin-bottom: 8px">
+              <el-option label="低" value="low" />
+              <el-option label="中" value="medium" />
+              <el-option label="高" value="high" />
+              <el-option label="紧急" value="critical" />
+            </el-select>
+            <el-input v-model="escalationForm.description" type="textarea" :rows="2" placeholder="描述遇到的问题..." style="margin-bottom: 8px" />
+            <el-button size="small" type="danger" @click="handleCreateEscalation">提交</el-button>
+          </div>
+          <div v-for="esc in escalations" :key="esc.id" class="escalation-item">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px">
+              <el-tag :type="esc.severity === 'critical' ? 'danger' : esc.severity === 'high' ? 'warning' : 'info'" size="small">
+                {{ { low: '低', medium: '中', high: '高', critical: '紧急' }[esc.severity] }}
+              </el-tag>
+              <el-tag :type="esc.status === 'resolved' ? 'success' : 'danger'" size="small">
+                {{ esc.status === 'resolved' ? '已解决' : '待处理' }}
+              </el-tag>
+              <span style="font-size: 12px; color: var(--el-text-color-secondary)">{{ formatDateTime(esc.created_at) }}</span>
+            </div>
+            <div style="font-size: 13px; margin-bottom: 4px">{{ esc.description }}</div>
+            <div v-if="esc.resolution" style="font-size: 13px; color: var(--el-color-success)">解决: {{ esc.resolution }}</div>
+            <el-button v-if="esc.status !== 'resolved'" size="small" text type="success" @click="handleResolveEscalation(esc)">
+              标记解决
+            </el-button>
+          </div>
+          <EmptyState v-if="escalations.length === 0" text="暂无问题升级" :size="36" />
+        </el-tab-pane>
+
+        <!-- 动态 -->
+        <el-tab-pane :label="`动态 (${transitions.length})`" name="transitions">
+          <el-timeline>
+            <el-timeline-item v-for="t in transitions" :key="t.id" :timestamp="formatDateTime(t.created_at)">
+              <span style="color: var(--el-color-primary)">{{ t.operator_name }}</span>:
+              {{ t.from_status || '(创建)' }} → {{ t.to_status }}
+              <span v-if="t.remark" style="color: var(--el-color-warning); margin-left: 8px">{{ t.remark }}</span>
+            </el-timeline-item>
+          </el-timeline>
+          <EmptyState v-if="transitions.length === 0" text="暂无流转记录" :size="36" />
+        </el-tab-pane>
+      </el-tabs>
     </template>
   </el-drawer>
 </template>
@@ -677,10 +693,34 @@ function close() {
 }
 .escalation-item {
   padding: 10px;
-  border: 1px solid #fde2e2;
+  border: 1px solid var(--el-color-danger-light-7);
   border-radius: 4px;
   margin-bottom: 8px;
-  background: #fef0f0;
+  background: var(--el-color-danger-light-9);
+}
+.section-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-title);
+  margin: 16px 0 8px;
+}
+.detail-block {
+  margin-bottom: 4px;
+}
+.task-description {
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+  background: var(--el-fill-color-lighter);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+.comment-item {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: var(--el-fill-color-light);
+  border-radius: var(--radius-sm);
 }
 .drawer-nav {
   display: flex;

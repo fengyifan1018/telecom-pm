@@ -82,7 +82,7 @@ async function handleLogin() {
 .login {
   display: flex;
   height: 100vh;
-  background: #fff;
+  background: var(--el-bg-color);
 }
 
 /* Left brand panel */

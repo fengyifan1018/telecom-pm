@@ -178,7 +178,7 @@ onMounted(() => {
 
     <el-container>
       <!-- Header -->
-      <el-header :style="isMobile ? 'display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid #eee;background:#fff' : 'display:flex;align-items:center;justify-content:flex-end;gap:16px;border-bottom:1px solid #eee;background:#fff'">
+      <el-header :style="isMobile ? 'display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--el-border-color-light);background:var(--el-bg-color)' : 'display:flex;align-items:center;justify-content:flex-end;gap:16px;border-bottom:1px solid var(--el-border-color-light);background:var(--el-bg-color)'">
         <!-- Mobile: hamburger -->
         <el-button v-if="isMobile" text @click="showMobileNav = true" style="padding: 4px">
           <el-icon :size="20"><Fold /></el-icon>
@@ -195,7 +195,7 @@ onMounted(() => {
             <span style="cursor: pointer; display: flex; align-items: center; gap: 6px">
               <el-avatar :size="32">{{ auth.user?.display_name?.[0] }}</el-avatar>
               <span v-if="!isMobile">{{ auth.user?.display_name }}</span>
-              <span v-if="!isMobile" style="color: #999; font-size: 12px">({{ ROLE_MAP[auth.user?.role] }})</span>
+              <span v-if="!isMobile" style="color: var(--el-text-color-secondary); font-size: 12px">({{ ROLE_MAP[auth.user?.role] }})</span>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
@@ -327,8 +327,8 @@ onMounted(() => {
   left: 0;
   right: 0;
   height: 56px;
-  background: #fff;
-  border-top: 1px solid #e8e8e8;
+  background: var(--el-bg-color);
+  border-top: 1px solid var(--el-border-color-light);
   display: flex;
   align-items: stretch;
   z-index: 1000;

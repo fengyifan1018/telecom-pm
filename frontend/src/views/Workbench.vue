@@ -185,7 +185,7 @@ function isOverdue(task) {
             <el-table-column label="截止日期" width="120">
               <template #default="{ row }">
                 <span style="color: var(--el-color-danger); font-weight: bold">{{ row.planned_end }}</span>
-                <span style="color: var(--el-color-danger); font-size: 11px; margin-left: 4px">
+                <span style="color: var(--el-color-danger); font-size: 12px; margin-left: 4px">
                   (超{{ overdueDays(row.planned_end) }}天)
                 </span>
               </template>
@@ -210,7 +210,7 @@ function isOverdue(task) {
 
 <style scoped>
 .stat-card { text-align: center; padding: 8px 0; }
-.stat-number { font-size: 32px; font-weight: bold; }
+.stat-number { font-size: 28px; font-weight: bold; }
 .stat-label { font-size: 14px; color: var(--el-text-color-secondary); margin-top: 4px; }
 
 .stat-card-clickable {

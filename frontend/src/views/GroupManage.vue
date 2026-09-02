@@ -259,8 +259,8 @@ function availableUsers(groupId) {
 .member-panel {
   margin-top: 16px;
   padding: 16px;
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--el-border-color);
   border-radius: 4px;
-  background: #fafafa;
+  background: var(--el-fill-color-light);
 }
 </style>

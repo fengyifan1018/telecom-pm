@@ -310,7 +310,7 @@ const chartData = computed(() => {
 
 .gantt-row:hover .row-label,
 .gantt-row:hover .g-timeline {
-  background: #f9f9fb;
+  background: var(--el-fill-color-lighter);
 }
 
 /* ── Label column ── */
@@ -328,11 +328,11 @@ const chartData = computed(() => {
   position: sticky;
   left: 0;
   z-index: 5;
-  background: #fff;
+  background: var(--el-bg-color);
 }
 
 .row-label {
-  background: #fff;
+  background: var(--el-bg-color);
 }
 
 .label-text {
@@ -347,7 +347,7 @@ const chartData = computed(() => {
   position: relative;
   height: 34px;
   flex-shrink: 0;
-  background: #fff;
+  background: var(--el-bg-color);
   /* subtle day grid via repeating gradient (28px = PX_PER_DAY) */
   background-image: repeating-linear-gradient(
     to right,
