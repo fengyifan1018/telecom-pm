@@ -522,3 +522,56 @@ async def test_task_watch_notifications(client: AsyncClient, seeded_db):
     data = resp.json()
     items = data if isinstance(data, list) else data.get("items", [])
     assert not any(n["type"] == "task_status" and n.get("related_task_id") == t["id"] for n in items)
+
+
+@pytest.mark.asyncio
+async def test_project_health_list(client: AsyncClient, seeded_db):
+    from datetime import date, timedelta
+
+    headers = {"X-User-Id": "2"}  # pm01
+    pid, tasks = await _make_inited_project(client, "健康度测试", pm_id=2, init_user=2)
+    t = tasks[0]
+
+    # 造超期：昨天截止的未完成任务
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    resp = await client.put(f"/api/tasks/{t['id']}", json={"planned_end": yesterday}, headers=headers)
+    assert resp.status_code == 200
+    # 造未解决升级
+    resp = await client.post(f"/api/tasks/{t['id']}/escalations", json={
+        "severity": "high", "description": "资源卡住"}, headers=headers)
+    assert resp.status_code == 201
+    # 项目计划结束日期改为昨天 → 延期
+    resp = await client.put(f"/api/projects/{pid}", json={"planned_end": yesterday}, headers=headers)
+    assert resp.status_code == 200
+
+    # 默认列表带健康字段
+    resp = await client.get("/api/projects?search=健康度测试", headers=headers)
+    items = resp.json()["items"]
+    assert len(items) == 1
+    item = items[0]
+    assert item["progress_pct"] == 0
+    assert item["overdue_count"] >= 1
+    assert item["open_escalations"] == 1
+    assert item["at_risk"] is True
+    assert item["is_delayed"] is True
+    assert item["in_acceptance"] is False  # 刚立项，验收阶段未激活
+
+    # 延期筛选命中
+    resp = await client.get("/api/projects?delayed=true", headers=headers)
+    assert pid in [p["id"] for p in resp.json()["items"]]
+    # 风险筛选命中
+    resp = await client.get("/api/projects?at_risk=true", headers=headers)
+    assert pid in [p["id"] for p in resp.json()["items"]]
+    # 验收中筛选：未到验收阶段 → 不命中
+    resp = await client.get("/api/projects?in_acceptance=true", headers=headers)
+    assert pid not in [p["id"] for p in resp.json()["items"]]
+
+    # 完成该任务后 overdue 归零（该任务 done 不再计超期）
+    resp = await client.put(f"/api/tasks/{t['id']}/submit", json={}, headers=headers)
+    assert resp.status_code == 200
+    resp = await client.put(f"/api/tasks/{t['id']}/approve", json={}, headers=headers)
+    assert resp.status_code == 200
+    resp = await client.get("/api/projects?search=健康度测试", headers=headers)
+    item = resp.json()["items"][0]
+    assert item["overdue_count"] == 0
+    assert item["progress_pct"] > 0  # 1/26 完成

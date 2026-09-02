@@ -23,6 +23,7 @@ async def log_action(
         resource_type=resource_type,
         resource_id=resource_id,
         resource_name=resource_name,
-        detail=json.dumps(detail, ensure_ascii=False) if detail else None,
+        # default=str：兼容 model_dump 里的 date/datetime 等不可直接序列化的对象
+        detail=json.dumps(detail, ensure_ascii=False, default=str) if detail else None,
     )
     db.add(entry)

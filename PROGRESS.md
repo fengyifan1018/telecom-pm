@@ -311,7 +311,8 @@ npm run dev   # 默认 http://localhost:5173, proxy /api -> 8000
 10. **M2-T8 任务关注** — `task_watchers` 表 + `GET/PUT /tasks/{id}/watch`（toggle）；抽屉头部星标按钮（关注数）；提交/通过/退回/指派事件经 `notify_watchers()` 分发给关注者（排除发起人与主通知目标，避免重复）
 11. **样式统一与抽屉改版** — 清查全站硬编码颜色归到设计令牌（看板/甘特/模板/登录/布局/客户分组等 9 个文件，含 11px→12px 字号统一、统计卡数字统一 28px）；任务抽屉从 550px 加宽到 720px 并 tab 化分区；评论区/升级区补 EmptyState 空态
 12. **抽屉信息架构收敛** — 五 tab 合并为三：基本信息+描述+前置与阻塞常驻顶部（不占 tab），评论与流转记录合并为单一"动态"时间线（对齐 Linear/Jira activity feed 模式，评论输入框常驻底部），保留附件/问题两个低频 tab；一级列表与抽屉字号统一 14px（嵌套/二级表格保留 small）
-13. **遗留死表** — `task_dependencies` 从未被写入（仅删项目时清理），待后续确认后移除
+13. **项目健康度** — `list_projects` 支持延期/有风险/验收中三个筛选参数，行内聚合完成度%（required 任务 done 比例）、超期任务数、未解决升级数、is_delayed/at_risk/in_acceptance 标记；项目列表加完成度进度条、超期/升级红色计数列（替换创建时间列）与"健康视图"筛选（URL 同步）；计划周期延期标红。**顺带修复存量 bug**：`log_action` 用 json.dumps 序列化含 date 的 detail 必抛错——编辑项目改计划周期必 500（改 default=str）
+14. **遗留死表** — `task_dependencies` 从未被写入（仅删项目时清理），待后续确认后移除
 
 ## 当前已注册路由汇总（65+个端点）
 

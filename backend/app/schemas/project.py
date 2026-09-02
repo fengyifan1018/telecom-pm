@@ -70,3 +70,15 @@ class ProjectResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ProjectHealthResponse(ProjectResponse):
+    """项目列表行 + 健康度聚合（完成度/超期/升级/延期/风险/验收）。"""
+    task_total: int = 0
+    task_done: int = 0
+    progress_pct: int = 0
+    overdue_count: int = 0
+    open_escalations: int = 0
+    is_delayed: bool = False
+    at_risk: bool = False
+    in_acceptance: bool = False

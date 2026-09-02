@@ -24,12 +24,13 @@ const q1 = (k) => {
   const v = route.query[k]
   return Array.isArray(v) ? v[0] : (v || '')
 }
-const filters = ref({ product_type: q1('product_type'), status: q1('status'), search: q1('search'), page: 1, page_size: 15 })
+const filters = ref({ product_type: q1('product_type'), status: q1('status'), search: q1('search'), view: q1('view'), page: 1, page_size: 15 })
 function syncQuery() {
   const q = {}
   if (filters.value.search) q.search = filters.value.search
   if (filters.value.product_type) q.product_type = filters.value.product_type
   if (filters.value.status) q.status = filters.value.status
+  if (filters.value.view) q.view = filters.value.view
   router.replace({ query: q }).catch(() => {})
 }
 
@@ -53,6 +54,7 @@ function resetFilters() {
   filters.value.search = ''
   filters.value.product_type = ''
   filters.value.status = ''
+  filters.value.view = ''
   filters.value.page = 1
   fetchProjects()
 }
@@ -74,6 +76,8 @@ async function fetchProjects() {
     if (!params.product_type) delete params.product_type
     if (!params.status) delete params.status
     if (!params.search) delete params.search
+    if (params.view) { params[params.view] = 'true'; delete params.view }
+    else delete params.view
     const res = await listProjects(params)
     projects.value = res.data.items
     total.value = res.data.total
@@ -191,6 +195,11 @@ async function handleDelete(row, e) {
             <el-option label="已完成" value="completed" />
             <el-option label="已取消" value="cancelled" />
           </el-select>
+          <el-select v-model="filters.view" placeholder="健康视图" clearable style="width: 120px">
+            <el-option label="延期项目" value="delayed" />
+            <el-option label="有风险" value="at_risk" />
+            <el-option label="验收中" value="in_acceptance" />
+          </el-select>
         </div>
         <div class="toolbar-right">
           <span class="result-count">共 <b class="num">{{ total }}</b> 个项目</span>
@@ -228,7 +237,8 @@ async function handleDelete(row, e) {
         </el-table-column>
         <el-table-column label="计划周期" width="200">
           <template #default="{ row }">
-            <span v-if="row.planned_start || row.planned_end" class="num" style="white-space: nowrap">
+            <span v-if="row.planned_start || row.planned_end" class="num"
+                  :style="{ whiteSpace: 'nowrap', color: row.is_delayed ? 'var(--el-color-danger)' : '', fontWeight: row.is_delayed ? 'bold' : 'normal' }">
               {{ row.planned_start || '?' }} ~ {{ row.planned_end || '?' }}
             </span>
             <span v-else style="color: var(--el-text-color-placeholder)">-</span>
@@ -239,14 +249,31 @@ async function handleDelete(row, e) {
             <el-tag :type="STATUS_MAP[row.status]?.type" size="small">{{ STATUS_MAP[row.status]?.label }}</el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="完成度" width="120">
+          <template #default="{ row }">
+            <div class="progress-cell">
+              <el-progress :percentage="row.progress_pct || 0" :stroke-width="6" :show-text="false" style="width: 56px" />
+              <span class="num" style="font-size: 12px; color: var(--el-text-color-secondary)">{{ row.progress_pct || 0 }}%</span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="超期" width="60" align="center">
+          <template #default="{ row }">
+            <span v-if="row.overdue_count" style="color: var(--el-color-danger); font-weight: bold; font-variant-numeric: tabular-nums">{{ row.overdue_count }}</span>
+            <span v-else style="color: var(--el-text-color-placeholder)">0</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="升级" width="60" align="center">
+          <template #default="{ row }">
+            <span v-if="row.open_escalations" style="color: var(--el-color-danger); font-weight: bold">{{ row.open_escalations }}</span>
+            <span v-else style="color: var(--el-text-color-placeholder)">0</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="pm_name" label="项目经理" width="90">
           <template #default="{ row }">{{ row.pm_name || '-' }}</template>
         </el-table-column>
         <el-table-column prop="sales_name" label="销售" width="110" show-overflow-tooltip>
           <template #default="{ row }">{{ row.sales_name || '-' }}</template>
-        </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="110">
-          <template #default="{ row }"><span class="num">{{ formatDate(row.created_at) }}</span></template>
         </el-table-column>
         <el-table-column v-if="isAdmin" label="操作" width="72" @click.stop>
           <template #default="{ row }">
@@ -407,6 +434,11 @@ async function handleDelete(row, e) {
 .search-ic { font-size: 15px; color: var(--text-secondary); }
 
 /* 行箭头可供性 */
+.progress-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .row-arrow {
   font-size: 18px;
   line-height: 1;

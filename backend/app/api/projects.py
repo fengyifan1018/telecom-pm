@@ -15,7 +15,7 @@ from app.models.attachment import Attachment
 from app.models.escalation import TaskEscalation
 from app.models.user import User
 from app.schemas.project import (
-    ProjectCreate, ProjectUpdate, ProjectResponse,
+    ProjectCreate, ProjectUpdate, ProjectResponse, ProjectHealthResponse,
     CustomerCreate, CustomerUpdate, CustomerResponse,
 )
 from app.schemas.task import TaskResponse
@@ -62,6 +62,9 @@ async def list_projects(
     product_type: str | None = None,
     status: str | None = None,
     search: str | None = None,
+    delayed: bool = False,
+    at_risk: bool = False,
+    in_acceptance: bool = False,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -69,12 +72,16 @@ async def list_projects(
 ):
     sales_scope = current_user.id if current_user.role == "sales" else None
     pm_scope = current_user.id if current_user.role == "pm" else None
-    items, total = await project_service.list_projects(db, product_type, status, search, page, page_size, sales_id=sales_scope, pm_scope_id=pm_scope)
+    items, total = await project_service.list_projects(
+        db, product_type, status, search, page, page_size,
+        sales_id=sales_scope, pm_scope_id=pm_scope,
+        delayed=delayed, at_risk=at_risk, in_acceptance=in_acceptance,
+    )
     return {
         "total": total,
         "page": page,
         "page_size": page_size,
-        "items": [ProjectResponse.model_validate(p) for p in items],
+        "items": [ProjectHealthResponse.model_validate(p) for p in items],
     }
 
 
