@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
-import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
-import { startTask, submitTask, approveTask, rejectTask, assignTask, updateTask, getComments, addComment, getTransitions, listUsers, listAttachments, uploadAttachment, deleteAttachment, getAttachmentDownloadUrl, listEscalations, createEscalation, resolveEscalation, listTasks, getTaskRelations, addTaskRelation, deleteTaskRelation } from '../api/tasks'
+import { ArrowLeft, ArrowRight, Star, StarFilled } from '@element-plus/icons-vue'
+import { startTask, submitTask, approveTask, rejectTask, assignTask, updateTask, getComments, addComment, getTransitions, listUsers, listAttachments, uploadAttachment, deleteAttachment, getAttachmentDownloadUrl, listEscalations, createEscalation, resolveEscalation, listTasks, getTaskRelations, addTaskRelation, deleteTaskRelation, getTaskWatch, toggleTaskWatch } from '../api/tasks'
 import http from '../api/index'
 import EmptyState from './EmptyState.vue'
 import { STATUS_MAP, PHASE_MAP, ROLE_MAP } from '../utils/constants'
@@ -54,6 +54,22 @@ const uploadLoading = ref(false)
 const escalations = ref([])
 const showEscalationForm = ref(false)
 const escalationForm = ref({ severity: 'medium', description: '' })
+
+// 任务关注（watcher）
+const watchInfo = ref({ watching: false, count: 0, watchers: [] })
+async function loadWatch(taskId) {
+  const res = await getTaskWatch(taskId)
+  watchInfo.value = res.data
+}
+async function handleToggleWatch() {
+  try {
+    const res = await toggleTaskWatch(props.task.id)
+    ElMessage.success(res.data.watching ? '已关注任务，状态变更将通知你' : '已取消关注')
+    await loadWatch(props.task.id)
+  } catch {
+    // 错误提示由全局拦截器统一处理
+  }
+}
 
 // 任务关系（precedes 前置 / blocks 阻塞）
 const relations = ref({ predecessors: [], successors: [], blocking: [], blocked: [] })
@@ -140,6 +156,7 @@ watch(() => props.task, async (val) => {
     attachments.value = aRes.data
     escalations.value = eRes.data
     loadRelations(val.id)
+    loadWatch(val.id)
   }
 })
 
@@ -392,19 +409,25 @@ function close() {
 <template>
   <el-drawer :model-value="visible" @update:model-value="close" :size="isMobile ? '100%' : '550px'" :title="task?.title">
     <template v-if="task">
-      <div v-if="showProjectLink || peerIds.length > 1" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between">
+      <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between">
         <el-button v-if="showProjectLink" link type="primary" size="small" @click="emit('view-project', task.project_id)">
           查看所属项目 →
         </el-button>
         <span v-else></span>
-        <div v-if="peerIds.length > 1" class="drawer-nav">
-          <el-button link size="small" :disabled="!hasPrev" @click="goPrev">
-            <el-icon><ArrowLeft /></el-icon>
+        <div style="display: flex; align-items: center; gap: 10px">
+          <el-button link size="small" :type="watchInfo.watching ? 'warning' : ''" @click="handleToggleWatch">
+            <el-icon><StarFilled v-if="watchInfo.watching" /><Star v-else /></el-icon>
+            <span style="font-variant-numeric: tabular-nums">{{ watchInfo.count }}</span>
           </el-button>
-          <span class="drawer-nav__count">{{ navIndex + 1 }} / {{ peerIds.length }}</span>
-          <el-button link size="small" :disabled="!hasNext" @click="goNext">
-            <el-icon><ArrowRight /></el-icon>
-          </el-button>
+          <div v-if="peerIds.length > 1" class="drawer-nav">
+            <el-button link size="small" :disabled="!hasPrev" @click="goPrev">
+              <el-icon><ArrowLeft /></el-icon>
+            </el-button>
+            <span class="drawer-nav__count">{{ navIndex + 1 }} / {{ peerIds.length }}</span>
+            <el-button link size="small" :disabled="!hasNext" @click="goNext">
+              <el-icon><ArrowRight /></el-icon>
+            </el-button>
+          </div>
         </div>
       </div>
       <div style="margin-bottom: 16px">

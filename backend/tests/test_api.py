@@ -482,3 +482,43 @@ async def test_task_progress(client: AsyncClient, seeded_db):
     resp = await client.get("/api/dashboard/phase-stats", headers=headers)
     stats = resp.json()
     assert stats[t["phase"]]["avg_progress"] == 33.3
+
+
+@pytest.mark.asyncio
+async def test_task_watch_notifications(client: AsyncClient, seeded_db):
+    pid, tasks = await _make_inited_project(client, "关注测试", pm_id=2, init_user=2)
+    t = tasks[0]  # active
+
+    # user3(运营) 关注任务
+    resp = await client.put(f"/api/tasks/{t['id']}/watch", headers={"X-User-Id": "3"})
+    assert resp.status_code == 200
+    assert resp.json()["watching"] is True
+
+    # 关注状态查询
+    resp = await client.get(f"/api/tasks/{t['id']}/watch", headers={"X-User-Id": "3"})
+    body = resp.json()
+    assert body["watching"] is True and body["count"] == 1
+
+    # toggle 取关后再关注
+    resp = await client.put(f"/api/tasks/{t['id']}/watch", headers={"X-User-Id": "3"})
+    assert resp.json()["watching"] is False
+    resp = await client.put(f"/api/tasks/{t['id']}/watch", headers={"X-User-Id": "3"})
+    assert resp.json()["watching"] is True
+
+    # pm 提交任务 → 关注者 user3 收到状态通知
+    resp = await client.put(f"/api/tasks/{t['id']}/submit", json={}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 200
+    resp = await client.get("/api/notifications", headers={"X-User-Id": "3"})
+    data = resp.json()
+    items = data if isinstance(data, list) else data.get("items", [])
+    assert any(n["type"] == "task_status" and n.get("related_task_id") == t["id"] for n in items)
+
+    # 发起动作的人自己即使关注了也不收自己的通知
+    resp = await client.put(f"/api/tasks/{t['id']}/watch", headers={"X-User-Id": "2"})
+    assert resp.json()["watching"] is True
+    resp = await client.put(f"/api/tasks/{t['id']}/approve", json={}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 200
+    resp = await client.get("/api/notifications", headers={"X-User-Id": "2"})
+    data = resp.json()
+    items = data if isinstance(data, list) else data.get("items", [])
+    assert not any(n["type"] == "task_status" and n.get("related_task_id") == t["id"] for n in items)

@@ -25,6 +25,8 @@ export const getTransitions = (id) => http.get(`/tasks/${id}/transitions`)
 export const getTaskRelations = (id) => http.get(`/tasks/${id}/relations`)
 export const addTaskRelation = (id, data) => http.post(`/tasks/${id}/relations`, data)
 export const deleteTaskRelation = (relationId) => http.delete(`/tasks/relations/${relationId}`)
+export const getTaskWatch = (id) => http.get(`/tasks/${id}/watch`)
+export const toggleTaskWatch = (id) => http.put(`/tasks/${id}/watch`)
 
 export const getDashboard = (params) => http.get('/dashboard/my-workbench', { params })
 

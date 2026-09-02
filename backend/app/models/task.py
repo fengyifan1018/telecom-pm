@@ -73,3 +73,14 @@ class TaskTransition(Base):
     operator_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     remark: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn)
+
+
+class TaskWatcher(Base):
+    """任务关注：非参与者订阅任务动态，状态变更时收到通知。"""
+    __tablename__ = "task_watchers"
+    __table_args__ = (UniqueConstraint("task_id", "user_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn)

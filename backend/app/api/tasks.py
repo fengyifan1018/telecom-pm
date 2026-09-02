@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_current_user
 from app.permissions import require_roles, require_permission
-from app.models.task import Task, TaskRelation
+from app.models.task import Task, TaskRelation, TaskWatcher
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.task import (
@@ -15,7 +15,7 @@ from app.schemas.task import (
 )
 from app.services import task_service
 from app.services.flow_engine import FlowEngine
-from app.services.notification_service import notify, notify_mentions
+from app.services.notification_service import notify, notify_mentions, notify_watchers
 from app.services.audit_service import log_action
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
@@ -118,6 +118,8 @@ async def assign_task(
         related_task_id=task.id,
         related_project_id=task.project_id,
     )
+    await notify_watchers(db, task, [current_user.id, data.assignee_id],
+                          "task_assigned", f"你关注的任务已更新指派: {task.title}")
     await log_action(db, current_user.id, current_user.display_name, "assign",
                      "task", task.id, task.title,
                      detail={"assignee_id": data.assignee_id})
@@ -172,6 +174,8 @@ async def submit_task(
         raise HTTPException(status_code=400, detail=str(e))
     if task.reviewer_id:
         await notify(db, task.reviewer_id, "task_status", f"任务待审核: {task.title}", related_task_id=task.id, related_project_id=task.project_id)
+    await notify_watchers(db, task, [current_user.id] + ([task.reviewer_id] if task.reviewer_id else []),
+                          "task_status", f"任务待审核: {task.title}")
     await log_action(db, current_user.id, current_user.display_name, "submit",
                      "task", task.id, task.title)
     await db.commit()
@@ -198,6 +202,8 @@ async def approve_task(
         raise HTTPException(status_code=400, detail=str(e))
     if task.assignee_id:
         await notify(db, task.assignee_id, "task_status", f"任务已通过: {task.title}", related_task_id=task.id, related_project_id=task.project_id)
+    await notify_watchers(db, task, [current_user.id] + ([task.assignee_id] if task.assignee_id else []),
+                          "task_status", f"任务已通过: {task.title}")
     await log_action(db, current_user.id, current_user.display_name, "approve",
                      "task", task.id, task.title)
     await db.commit()
@@ -226,6 +232,8 @@ async def reject_task(
         raise HTTPException(status_code=400, detail=str(e))
     if task.assignee_id:
         await notify(db, task.assignee_id, "task_status", f"任务被退回: {task.title}", content=data.remark, related_task_id=task.id, related_project_id=task.project_id)
+    await notify_watchers(db, task, [current_user.id] + ([task.assignee_id] if task.assignee_id else []),
+                          "task_status", f"任务被退回: {task.title}", content=data.remark)
     await log_action(db, current_user.id, current_user.display_name, "reject",
                      "task", task.id, task.title,
                      detail={"remark": data.remark})
@@ -367,6 +375,44 @@ async def delete_relation(
         raise HTTPException(status_code=403, detail="只有创建者或项目经理可以删除关系")
     await db.delete(rel)
     await db.commit()
+
+
+@router.get("/{task_id}/watch")
+async def get_watch(
+    task_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = await _get_visible_task(db, task_id, current_user)
+    rows = await db.execute(
+        select(User.id, User.display_name)
+        .join(TaskWatcher, TaskWatcher.user_id == User.id)
+        .where(TaskWatcher.task_id == task_id)
+        .order_by(TaskWatcher.created_at)
+    )
+    watchers = [{"id": uid, "display_name": name} for uid, name in rows.all()]
+    return {"watching": any(w["id"] == current_user.id for w in watchers), "count": len(watchers), "watchers": watchers}
+
+
+@router.put("/{task_id}/watch")
+async def toggle_watch(
+    task_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = await _get_visible_task(db, task_id, current_user)
+    existing = await db.execute(
+        select(TaskWatcher).where(TaskWatcher.task_id == task_id, TaskWatcher.user_id == current_user.id)
+    )
+    cur = existing.scalar_one_or_none()
+    if cur:
+        await db.delete(cur)
+        watching = False
+    else:
+        db.add(TaskWatcher(task_id=task_id, user_id=current_user.id))
+        watching = True
+    await db.commit()
+    return {"watching": watching}
 
 
 @router.post("/{task_id}/comments", response_model=CommentResponse, status_code=201)

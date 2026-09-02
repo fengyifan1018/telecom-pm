@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.notification import Notification
+from app.models.task import TaskWatcher
 from app.models.user import User
 
 
@@ -56,3 +57,20 @@ async def notify_mentions(
             related_task_id=related_task_id,
             related_project_id=related_project_id,
         )
+
+
+async def notify_watchers(
+    db: AsyncSession,
+    task,
+    exclude_ids: list[int],
+    type: str,
+    title: str,
+    content: str | None = None,
+):
+    """通知任务的所有关注者（排除发起动作的人和已收到通知的主要目标）。"""
+    query = select(TaskWatcher.user_id).where(TaskWatcher.task_id == task.id)
+    if exclude_ids:
+        query = query.where(TaskWatcher.user_id.notin_(exclude_ids))
+    result = await db.execute(query)
+    for (uid,) in result.all():
+        await notify(db, uid, type, title, content, related_task_id=task.id, related_project_id=task.project_id)
