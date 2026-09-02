@@ -4,6 +4,7 @@ from sqlalchemy import String, Boolean, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.timeutil import now_cn
 
 
 class User(Base):
@@ -15,4 +16,4 @@ class User(Base):
     display_name: Mapped[str] = mapped_column(String(50))
     role: Mapped[str] = mapped_column(String(20))  # sales/pm/operations/procurement/network_engineer/field_engineer/admin
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn)

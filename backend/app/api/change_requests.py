@@ -12,6 +12,7 @@ from app.models.change_request import ChangeRequest
 from app.models.project import Project
 from app.models.user import User
 from app.services.notification_service import notify
+from app.timeutil import now_cn
 
 router = APIRouter(prefix="/api/projects", tags=["change-requests"])
 
@@ -27,7 +28,7 @@ class CRReject(BaseModel):
 
 
 async def _next_cr_no(db: AsyncSession) -> str:
-    today = datetime.utcnow().strftime("%Y%m%d")
+    today = now_cn().strftime("%Y%m%d")
     result = await db.execute(
         select(ChangeRequest)
         .where(ChangeRequest.cr_no.like(f"CR-{today}-%"))
@@ -106,7 +107,7 @@ async def approve_change_request(
 
     cr.status = "approved"
     cr.approved_by = current_user.id
-    cr.approved_at = datetime.utcnow()
+    cr.approved_at = now_cn()
 
     await notify(
         db, cr.requested_by, "cr_approved",
@@ -134,7 +135,7 @@ async def reject_change_request(
 
     cr.status = "rejected"
     cr.approved_by = current_user.id
-    cr.approved_at = datetime.utcnow()
+    cr.approved_at = now_cn()
     cr.reject_reason = data.reject_reason
 
     await notify(

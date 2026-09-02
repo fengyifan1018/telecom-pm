@@ -4,6 +4,7 @@ from sqlalchemy import String, Integer, Boolean, DateTime, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.timeutil import now_cn
 
 
 class WorkflowTemplate(Base):
@@ -15,4 +16,4 @@ class WorkflowTemplate(Base):
     version: Mapped[int] = mapped_column(Integer, default=1)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     phases: Mapped[dict] = mapped_column(JSON)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn)

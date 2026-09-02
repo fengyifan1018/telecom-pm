@@ -5,6 +5,7 @@ from sqlalchemy import String, DateTime, Date, Integer, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.timeutil import now_cn
 
 
 class ProjectSuspension(Base):
@@ -15,7 +16,7 @@ class ProjectSuspension(Base):
     reason_category: Mapped[str] = mapped_column(String(30))
     reason: Mapped[Optional[str]] = mapped_column(Text)
     suspended_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    suspended_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    suspended_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn)
     expected_resume: Mapped[Optional[date]] = mapped_column(Date)
     resumed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     resumed_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))

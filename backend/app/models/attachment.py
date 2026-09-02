@@ -5,6 +5,7 @@ from sqlalchemy import String, DateTime, Integer, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.timeutil import now_cn
 
 
 class Attachment(Base):
@@ -17,4 +18,4 @@ class Attachment(Base):
     content_type: Mapped[Optional[str]] = mapped_column(String(100))
     size: Mapped[int] = mapped_column(Integer)
     uploader_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn)

@@ -5,6 +5,7 @@ from sqlalchemy import String, DateTime, Integer, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.timeutil import now_cn
 
 
 class TaskEscalation(Base):
@@ -18,5 +19,5 @@ class TaskEscalation(Base):
     description: Mapped[str] = mapped_column(Text)
     resolution: Mapped[Optional[str]] = mapped_column(Text)
     resolved_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn)
     resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime)

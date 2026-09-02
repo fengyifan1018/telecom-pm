@@ -5,6 +5,7 @@ from sqlalchemy import String, DateTime, Integer, Boolean, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.timeutil import now_cn
 
 
 class Notification(Base):
@@ -18,4 +19,4 @@ class Notification(Base):
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
     related_task_id: Mapped[Optional[int]] = mapped_column(ForeignKey("tasks.id"))
     related_project_id: Mapped[Optional[int]] = mapped_column(ForeignKey("projects.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn)

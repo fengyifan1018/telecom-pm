@@ -6,6 +6,7 @@ from sqlalchemy import String, DateTime, Date, Numeric, Integer, ForeignKey, Tex
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.timeutil import now_cn
 
 
 class Customer(Base):
@@ -15,7 +16,7 @@ class Customer(Base):
     name: Mapped[str] = mapped_column(String(200), index=True)
     contact_name: Mapped[Optional[str]] = mapped_column(String(50))
     contact_phone: Mapped[Optional[str]] = mapped_column(String(20))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn)
 
 
 class Project(Base):
@@ -37,5 +38,5 @@ class Project(Base):
     actual_end: Mapped[Optional[date]] = mapped_column(Date)
     description: Mapped[Optional[str]] = mapped_column(Text)
     version: Mapped[int] = mapped_column(Integer, default=1)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn, onupdate=now_cn)

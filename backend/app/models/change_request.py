@@ -5,6 +5,7 @@ from sqlalchemy import String, DateTime, Integer, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.timeutil import now_cn
 
 
 class ChangeRequest(Base):
@@ -20,5 +21,5 @@ class ChangeRequest(Base):
     requested_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
     approved_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))
     reject_reason: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn)
     approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime)

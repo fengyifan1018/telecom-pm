@@ -5,6 +5,7 @@ from sqlalchemy import String, DateTime, Integer, Text, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.timeutil import now_cn
 
 
 class AuditLog(Base):
@@ -18,4 +19,4 @@ class AuditLog(Base):
     resource_id: Mapped[Optional[int]] = mapped_column(Integer)
     resource_name: Mapped[Optional[str]] = mapped_column(String(200))
     detail: Mapped[Optional[str]] = mapped_column(Text)  # JSON string
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn, index=True)

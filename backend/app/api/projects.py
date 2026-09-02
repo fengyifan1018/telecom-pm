@@ -22,6 +22,7 @@ from app.schemas.task import TaskResponse
 from app.services import project_service, template_service
 from app.services.notification_service import notify
 from app.services.audit_service import log_action
+from app.timeutil import now_cn
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -360,7 +361,7 @@ async def resume_project(
     )
     suspension = result.scalar_one_or_none()
     if suspension:
-        now = datetime.utcnow()
+        now = now_cn()
         suspension.resumed_at = now
         suspension.resumed_by = current_user.id
         suspension.resume_note = data.note

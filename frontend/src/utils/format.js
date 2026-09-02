@@ -11,9 +11,10 @@ export function formatDateTime(value, withSeconds = false) {
   return String(value).slice(0, withSeconds ? 19 : 16).replace('T', ' ')
 }
 
-/** 今天的日期字符串 YYYY-MM-DD（用于与后端日期字段比较） */
+/** 今天的日期字符串 YYYY-MM-DD（本地时区，用于与后端日期字段比较） */
 export function todayStr() {
-  return new Date().toISOString().slice(0, 10)
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 /** 相对今天已超期的天数（未超期返回 0） */

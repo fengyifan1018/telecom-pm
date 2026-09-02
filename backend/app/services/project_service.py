@@ -6,10 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.project import Project, Customer
 from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectUpdate
+from app.timeutil import now_cn
 
 
 async def generate_project_no(db: AsyncSession) -> str:
-    year = datetime.utcnow().year
+    year = now_cn().year
     result = await db.execute(
         select(func.count()).where(Project.project_no.like(f"PRJ-{year}-%"))
     )
@@ -95,7 +96,7 @@ async def update_project(db: AsyncSession, project: Project, data: ProjectUpdate
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(project, field, value)
     project.version += 1
-    project.updated_at = datetime.utcnow()
+    project.updated_at = now_cn()
     return project
 
 

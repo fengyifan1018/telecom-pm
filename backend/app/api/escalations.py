@@ -11,6 +11,7 @@ from app.models.escalation import TaskEscalation
 from app.models.task import Task
 from app.models.user import User
 from app.services.notification_service import notify
+from app.timeutil import now_cn
 
 router = APIRouter(prefix="/api/tasks/{task_id}/escalations", tags=["escalations"])
 
@@ -105,7 +106,7 @@ async def resolve_escalation(
     escalation.status = "resolved"
     escalation.resolution = data.resolution
     escalation.resolved_by = current_user.id
-    escalation.resolved_at = datetime.utcnow()
+    escalation.resolved_at = now_cn()
 
     task = await db.get(Task, task_id)
     if task and escalation.raised_by != current_user.id:
