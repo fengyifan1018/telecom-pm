@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>仪表盘设计方案 · 通信项目管理系统</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--font:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif}
+body{font-family:var(--font);background:#1a1d25;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+
+/* nav tabs */
+.nav-tabs{display:flex;gap:0;background:#111318;border-bottom:1px solid #2a2d3a;padding:0 24px;position:sticky;top:0;z-index:100}
+.tab{padding:14px 24px;font-size:14px;font-weight:500;color:#777;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s}
+.tab.active{color:#fff;border-bottom-color:#1890ff}
+.tab:hover:not(.active){color:#bbb}
+.preview-label{max-width:1440px;margin:0 auto;padding:20px 24px 0;font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:#555;font-weight:600}
+.section{display:none}.section.active{display:block}
+
+/* ======================== SHARED DASHBOARD SHELL ======================== */
+.dash{display:grid;grid-template-columns:220px 1fr;height:calc(100vh - 90px);min-height:680px;background:var(--d-bg)}
+/* sidebar */
+.d-side{background:var(--d-side-bg);border-right:1px solid var(--d-border);display:flex;flex-direction:column;gap:2px;padding:0}
+.d-logo{padding:20px 20px 16px;border-bottom:1px solid var(--d-border);margin-bottom:8px}
+.d-logo-inner{display:flex;align-items:center;gap:10px}
+.d-logo-dot{width:28px;height:28px;border-radius:7px;background:var(--d-primary);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700;flex-shrink:0}
+.d-logo-text{color:var(--d-text-side);font-size:14px;font-weight:600}
+.d-logo-sub{color:var(--d-text-muted);font-size:11px;margin-top:1px}
+.d-nav{display:flex;align-items:center;gap:10px;padding:9px 16px;margin:0 8px;border-radius:8px;font-size:13.5px;color:var(--d-text-side-nav);cursor:pointer;transition:background .15s}
+.d-nav:hover{background:var(--d-nav-hover)}
+.d-nav.on{background:var(--d-nav-active);color:var(--d-primary);font-weight:600}
+.d-nav-ic{width:16px;height:16px;border-radius:3px;border:1.6px solid currentColor;flex-shrink:0;opacity:.8}
+.d-nav.on .d-nav-ic{background:var(--d-primary);border-color:var(--d-primary);opacity:1}
+.d-nav-badge{margin-left:auto;background:var(--d-danger);color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:99px;min-width:18px;text-align:center}
+/* main */
+.d-main{display:flex;flex-direction:column;overflow:hidden}
+.d-topbar{height:56px;background:var(--d-surface);border-bottom:1px solid var(--d-border);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0}
+.d-topbar h1{font-size:16px;font-weight:600;color:var(--d-text-primary)}
+.d-breadcrumb{font-size:12px;color:var(--d-text-muted)}
+.d-topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.d-avatar{width:32px;height:32px;border-radius:50%;background:var(--d-primary);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:700}
+.d-notif{position:relative;cursor:pointer}
+.d-notif-dot{position:absolute;top:-2px;right:-2px;width:8px;height:8px;border-radius:50%;background:var(--d-danger);border:2px solid var(--d-surface)}
+.d-notif-ic{width:18px;height:18px;border-radius:50%;border:1.6px solid var(--d-text-muted);display:grid;place-items:center}
+.d-content{flex:1;overflow-y:auto;padding:16px 20px 24px;background:var(--d-bg)}
+
+/* KPIs */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:var(--d-surface);border:1px solid var(--d-border);border-radius:var(--d-radius);padding:14px 16px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--kpi-accent,var(--d-primary))}
+.kpi-label{font-size:12px;color:var(--d-text-muted);margin-bottom:10px;font-weight:500}
+.kpi-val{font-size:30px;font-weight:700;color:var(--d-text-primary);line-height:1;margin-bottom:8px}
+.kpi-sub{font-size:12px;color:var(--d-text-muted);display:flex;align-items:center;gap:4px}
+.kpi-up{color:var(--d-success);font-weight:600}
+.kpi-down{color:var(--d-danger);font-weight:600}
+.kpi-chart{position:absolute;right:10px;top:14px;opacity:.35}
+
+/* chart grid */
+.chart-row{display:grid;gap:12px;margin-bottom:12px}
+.chart-row.cols-2{grid-template-columns:1fr 1fr}
+.chart-row.cols-3{grid-template-columns:1.4fr 1fr 1fr}
+.chart-card{background:var(--d-surface);border:1px solid var(--d-border);border-radius:var(--d-radius);padding:14px 16px}
+.chart-title{font-size:13px;font-weight:600;color:var(--d-text-primary);margin-bottom:4px}
+.chart-sub{font-size:11px;color:var(--d-text-muted);margin-bottom:12px}
+.chart-wrap{width:100%;overflow:hidden}
+
+/* legend */
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--d-text-muted)}
+.leg-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+
+/* small table */
+.mini-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.mini-table th{padding:6px 10px;text-align:left;color:var(--d-text-muted);font-weight:600;background:var(--d-surface2);border-bottom:1px solid var(--d-border)}
+.mini-table td{padding:8px 10px;border-bottom:1px solid var(--d-border);color:var(--d-text-secondary)}
+.mini-table tr:last-child td{border-bottom:none}
+.mini-table tr:hover td{background:var(--d-hover)}
+.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:4px;font-weight:500;vertical-align:middle}
+
+/* ======================== SCHEME A — DARK TECH ======================== */
+.s-a{
+  --d-bg:#0D1117;--d-surface:#161B22;--d-surface2:#1C2128;--d-side-bg:#0D1117;
+  --d-border:#30363D;--d-hover:#21262D;--d-nav-hover:rgba(255,255,255,.05);
+  --d-nav-active:rgba(35,134,54,.12);
+  --d-text-primary:#E6EDF3;--d-text-secondary:#C9D1D9;--d-text-muted:#8B949E;
+  --d-text-side:#C9D1D9;--d-text-side-nav:#8B949E;
+  --d-primary:#3FB950;--d-success:#3FB950;--d-warning:#D29922;--d-danger:#F85149;
+  --d-info:#58A6FF;--d-radius:8px;
+}
+/* Scheme A chart colors */
+.s-a .chart-a1{fill:#3FB950}
+.s-a .chart-a2{fill:#58A6FF}
+.s-a .chart-a3{fill:#D29922}
+.s-a .chart-a4{fill:#F85149}
+.s-a .chart-a5{fill:#BC8CFF}
+.s-a .stroke-1{stroke:#3FB950}
+.s-a .stroke-2{stroke:#58A6FF}
+.s-a .area-1{fill:url(#grad-a-1)}
+.s-a .area-2{fill:url(#grad-a-2)}
+
+/* ======================== SCHEME B — LIGHT SAAS ======================== */
+.s-b{
+  --d-bg:#F8FAFC;--d-surface:#FFFFFF;--d-surface2:#F1F5F9;--d-side-bg:#FFFFFF;
+  --d-border:#E2E8F0;--d-hover:#F8FAFC;--d-nav-hover:#F1F5F9;
+  --d-nav-active:#EEF2FF;
+  --d-text-primary:#0F172A;--d-text-secondary:#334155;--d-text-muted:#64748B;
+  --d-text-side:#0F172A;--d-text-side-nav:#475569;
+  --d-primary:#2563EB;--d-success:#059669;--d-warning:#D97706;--d-danger:#DC2626;
+  --d-info:#7C3AED;--d-radius:14px;
+}
+.s-b .chart-a1{fill:#2563EB}
+.s-b .chart-a2{fill:#7C3AED}
+.s-b .chart-a3{fill:#059669}
+.s-b .chart-a4{fill:#DC2626}
+.s-b .chart-a5{fill:#D97706}
+.s-b .stroke-1{stroke:#2563EB}
+.s-b .stroke-2{stroke:#7C3AED}
+.s-b .area-1{fill:url(#grad-b-1)}
+.s-b .area-2{fill:url(#grad-b-2)}
+
+/* ======================== SCHEME C — ENTERPRISE ======================== */
+.s-c{
+  --d-bg:#F5F7FA;--d-surface:#FFFFFF;--d-surface2:#F5F7FA;--d-side-bg:#001529;
+  --d-border:#E5E8EF;--d-hover:#F0F4FF;--d-nav-hover:rgba(255,255,255,.06);
+  --d-nav-active:rgba(24,144,255,.15);
+  --d-text-primary:#1F2329;--d-text-secondary:#4E5969;--d-text-muted:#86909C;
+  --d-text-side:#C5CEE0;--d-text-side-nav:#8898AA;
+  --d-primary:#1890FF;--d-success:#16A34A;--d-warning:#D97706;--d-danger:#DC2626;
+  --d-info:#86909C;--d-radius:8px;
+}
+.s-c .d-logo-text{color:#fff}
+.s-c .d-logo-sub{color:#7A9DC8}
+.s-c .d-nav.on{color:#1890FF}
+.s-c .chart-a1{fill:#1890FF}
+.s-c .chart-a2{fill:#16A34A}
+.s-c .chart-a3{fill:#D97706}
+.s-c .chart-a4{fill:#DC2626}
+.s-c .chart-a5{fill:#86909C}
+.s-c .stroke-1{stroke:#1890FF}
+.s-c .stroke-2{stroke:#16A34A}
+.s-c .area-1{fill:url(#grad-c-1)}
+.s-c .area-2{fill:url(#grad-c-2)}
+</style>
+</head>
+<body>
+<div class="nav-tabs">
+  <div class="tab active" onclick="show('a',this)">方案 A · 深色科技型</div>
+  <div class="tab" onclick="show('b',this)">方案 B · 明亮 SaaS 型</div>
+  <div class="tab" onclick="show('c',this)">方案 C · 企业稳重型</div>
+</div>
+
+<!-- =================== SECTION A =================== -->
+<div class="section active" id="sec-a">
+<div class="preview-label">方案 A · 深色科技型 — 深邃暗色系 + 绿色活跃指标 + 科技感</div>
+<div class="dash s-a" id="dash-a"></div>
+</div>
+
+<!-- =================== SECTION B =================== -->
+<div class="section" id="sec-b">
+<div class="preview-label">方案 B · 明亮 SaaS 型 — 洁白大圆角 + 紫蓝主色 + 友好现代</div>
+<div class="dash s-b" id="dash-b"></div>
+</div>
+
+<!-- =================== SECTION C =================== -->
+<div class="section" id="sec-c">
+<div class="preview-label">方案 C · 企业稳重型 — 保留品牌蓝 + 深色侧边栏 + 经典企业</div>
+<div class="dash s-c" id="dash-c"></div>
+</div>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="grad-a-1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3FB950" stop-opacity=".35"/><stop offset="100%" stop-color="#3FB950" stop-opacity=".02"/></linearGradient>
+    <linearGradient id="grad-a-2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#58A6FF" stop-opacity=".25"/><stop offset="100%" stop-color="#58A6FF" stop-opacity=".01"/></linearGradient>
+    <linearGradient id="grad-b-1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2563EB" stop-opacity=".2"/><stop offset="100%" stop-color="#2563EB" stop-opacity=".01"/></linearGradient>
+    <linearGradient id="grad-b-2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7C3AED" stop-opacity=".18"/><stop offset="100%" stop-color="#7C3AED" stop-opacity=".01"/></linearGradient>
+    <linearGradient id="grad-c-1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1890FF" stop-opacity=".22"/><stop offset="100%" stop-color="#1890FF" stop-opacity=".01"/></linearGradient>
+    <linearGradient id="grad-c-2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#16A34A" stop-opacity=".18"/><stop offset="100%" stop-color="#16A34A" stop-opacity=".01"/></linearGradient>
+  </defs>
+</svg>
+
+<script>
+/* ---- tab switch ---- */
+function show(id, el) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  el.classList.add('active');
+}
+
+/* ---- data ---- */
+const SCHEMES = [
+  { id:'a', cls:'s-a', name:'通信项目管理',
+    c:{ primary:'#3FB950',info:'#58A6FF',warn:'#D29922',danger:'#F85149',muted:'#8B949E',text:'#E6EDF3',border:'#30363D',surface:'#1C2128',surface0:'#161B22' },
+    chartColors:['#3FB950','#58A6FF','#D29922','#F85149','#BC8CFF'],
+    gridColor:'rgba(139,148,158,.12)', axisColor:'#8B949E'
+  },
+  { id:'b', cls:'s-b', name:'通信项目管理',
+    c:{ primary:'#2563EB',info:'#7C3AED',warn:'#D97706',danger:'#DC2626',muted:'#64748B',text:'#0F172A',border:'#E2E8F0',surface:'#F1F5F9',surface0:'#fff' },
+    chartColors:['#2563EB','#7C3AED','#059669','#DC2626','#D97706'],
+    gridColor:'rgba(226,232,240,.8)', axisColor:'#94A3B8'
+  },
+  { id:'c', cls:'s-c', name:'通信项目管理',
+    c:{ primary:'#1890FF',info:'#86909C',warn:'#D97706',danger:'#DC2626',muted:'#86909C',text:'#1F2329',border:'#E5E8EF',surface:'#F5F7FA',surface0:'#fff' },
+    chartColors:['#1890FF','#16A34A','#D97706','#DC2626','#86909C'],
+    gridColor:'rgba(229,232,239,.8)', axisColor:'#86909C'
+  }
+];
+
+const NAV_ITEMS = [
+  {label:'工作台',active:false},{label:'项目管理',active:false},{label:'任务',active:true,badge:3},
+  {label:'报表中心',active:false},{label:'客户管理',active:false},{label:'权限管理',active:false},{label:'系统设置',active:false}
+];
+
+const KPI_DATA = [
+  {label:'项目总数',val:47,sub:'+5 本月新增',trend:'up',accent:null},
+  {label:'进行中',val:23,sub:'较上月 +2',trend:'up',accent:'primary'},
+  {label:'本月交付',val:8,sub:'完成率 89%',trend:'up',accent:'info'},
+  {label:'超期任务',val:3,sub:'需立即处理',trend:'down',accent:'danger'},
+];
+
+const DONUT_DATA = [
+  {label:'待分配',val:25},{label:'进行中',val:42},{label:'待审核',val:18},
+  {label:'已完成',val:35},{label:'已暂停',val:8}
+];
+
+const TREND_DATA = {
+  labels:['1月','2月','3月','4月','5月','6月'],
+  series1:[28,34,40,37,45,52],  // 新增任务
+  series2:[20,25,33,28,38,44]   // 完成任务
+};
+
+const BAR_DATA = [
+  {label:'DIA专线',val:23},{label:'传输',val:15},{label:'裸纤',val:8},{label:'SD-WAN',val:6}
+];
+
+const WORKLOAD = [
+  {name:'李四(项目经理)',val:8,max:10},{name:'刘工(网络工程师)',val:5,max:10},
+  {name:'王五(采购)',val:7,max:10},{name:'孙工(现场实施)',val:3,max:10}
+];
+
+const PROJECTS = [
+  {no:'DIA-2406-001',name:'深圳DIA专线改造',status:'active',pm:'李四',end:'2026-07-30'},
+  {no:'TRANS-2405-007',name:'上海传输网络升级',status:'review',pm:'李四',end:'2026-06-28'},
+  {no:'DIA-2406-003',name:'广州骨干线路接入',status:'pending',pm:'张经理',end:'2026-08-15'},
+  {no:'FIBER-2403-002',name:'成都裸纤项目',status:'done',pm:'王管理',end:'2026-06-10'},
+];
+const STATUS_LABELS={pending:'待分配',active:'进行中',review:'待审核',done:'已完成'};
+
+/* ---- builders ---- */
+function buildDash(sch) {
+  const c = sch.c;
+  const el = document.getElementById('dash-'+sch.id);
+  el.innerHTML = buildSide(sch) + buildMainArea(sch);
+}
+
+function buildSide(sch) {
+  const navHtml = NAV_ITEMS.map(n=>`
+    <div class="d-nav${n.active?' on':''}">
+      <span class="d-nav-ic"></span>
+      <span>${n.label}</span>
+      ${n.badge?`<span class="d-nav-badge">${n.badge}</span>`:''}
+    </div>`).join('');
+  return `<aside class="d-side">
+    <div class="d-logo">
+      <div class="d-logo-inner">
+        <div class="d-logo-dot">通</div>
+        <div>
+          <div class="d-logo-text">通信项目管理</div>
+          <div class="d-logo-sub">v2.4.1</div>
+        </div>
+      </div>
+    </div>
+    ${navHtml}
+  </aside>`;
+}
+
+function buildMainArea(sch) {
+  return `<div class="d-main">
+    <div class="d-topbar">
+      <h1>仪表盘</h1>
+      <span class="d-breadcrumb">工作台 / 数据概览</span>
+      <div class="d-topbar-right">
+        <div class="d-notif"><div class="d-notif-ic">◔</div><div class="d-notif-dot"></div></div>
+        <div class="d-avatar">李</div>
+      </div>
+    </div>
+    <div class="d-content">
+      ${buildKpis(sch)}
+      ${buildCharts(sch)}
+      ${buildBottom(sch)}
+    </div>
+  </div>`;
+}
+
+function buildKpis(sch) {
+  const cc = sch.c;
+  const accents = [cc.primary, cc.primary, cc.info, cc.danger];
+  const cards = KPI_DATA.map((k,i)=>{
+    const sparkPts = [18,10,22,15,28,20,35,24,38].map((y,xi)=>`${xi*10},${40-y}`).join(' ');
+    return `<div class="kpi num" style="--kpi-accent:${accents[i]}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-val">${k.val}</div>
+      <div class="kpi-sub">
+        <span class="kpi-${k.trend}">▲</span>
+        <span>${k.sub}</span>
+      </div>
+      <svg class="kpi-chart" width="80" height="40" viewBox="0 0 80 40">
+        <polyline points="${sparkPts}" fill="none" stroke="${accents[i]}" stroke-width="1.5" stroke-linejoin="round"/>
+      </svg>
+    </div>`;
+  }).join('');
+  return `<div class="kpi-row num">${cards}</div>`;
+}
+
+function buildCharts(sch) {
+  return `<div class="chart-row cols-2" style="margin-bottom:12px">
+    ${buildDonut(sch)}
+    ${buildArea(sch)}
+  </div>`;
+}
+
+function buildDonut(sch) {
+  const total = DONUT_DATA.reduce((s,d)=>s+d.val,0);
+  const colors = sch.chartColors;
+  const cx=80,cy=80,r=56,inner=34;
+  const circ = 2*Math.PI*r;
+  let offset=0;
+  const segs = DONUT_DATA.map((d,i)=>{
+    const pct=d.val/total;
+    const dash=pct*circ;
+    const seg=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${colors[i]}"
+      stroke-width="${r-inner}" stroke-dasharray="${dash-1} ${circ-(dash-1)}"
+      stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"/>`;
+    offset+=dash;
+    return seg;
+  }).join('');
+  const legend=DONUT_DATA.map((d,i)=>`
+    <div class="leg-item"><span class="leg-dot" style="background:${colors[i]}"></span>${d.label}: ${d.val}</div>
+  `).join('');
+  return `<div class="chart-card">
+    <div class="chart-title">任务状态分布</div>
+    <div class="chart-sub">全部 ${total} 个任务</div>
+    <div style="display:flex;align-items:center;gap:16px">
+      <svg width="160" height="160" viewBox="0 0 160 160">
+        ${segs}
+        <text x="${cx}" y="${cy}" text-anchor="middle" dy=".35em" font-size="20" font-weight="700" fill="${sch.c.text}">${total}</text>
+        <text x="${cx}" y="${cy+18}" text-anchor="middle" font-size="11" fill="${sch.c.muted}">任务总量</text>
+      </svg>
+      <div class="legend" style="flex-direction:column;gap:6px">${legend}</div>
+    </div>
+  </div>`;
+}
+
+function buildArea(sch) {
+  const d = TREND_DATA;
+  const W=320,H=120,pl=24,pr=12,pt=8,pb=28;
+  const cw=W-pl-pr, ch=H-pt-pb;
+  const n=d.labels.length;
+  const max=Math.max(...d.series1,...d.series2)*1.15;
+  const px=(i)=>pl+i*(cw/(n-1));
+  const py=(v)=>pt+ch-(v/max)*ch;
+  const pts1=d.series1.map((v,i)=>`${px(i)},${py(v)}`).join(' ');
+  const pts2=d.series2.map((v,i)=>`${px(i)},${py(v)}`).join(' ');
+  const area1=`${px(0)},${pt+ch} ${pts1} ${px(n-1)},${pt+ch}`;
+  const area2=`${px(0)},${pt+ch} ${pts2} ${px(n-1)},${pt+ch}`;
+  const gc=sch.gridColor, ac=sch.axisColor;
+  const grids=[20,40].map(pct=>`<line x1="${pl}" y1="${pt+ch-(pct/100)*ch*1.5}" x2="${W-pr}" y2="${pt+ch-(pct/100)*ch*1.5}" stroke="${gc}" stroke-width="1"/>`).join('');
+  const xlabels=d.labels.map((l,i)=>`<text x="${px(i)}" y="${H-4}" text-anchor="middle" font-size="10" fill="${ac}">${l}</text>`).join('');
+  const c1=sch.chartColors[0],c2=sch.chartColors[1];
+  return `<div class="chart-card">
+    <div class="chart-title">近6月任务趋势</div>
+    <div class="chart-sub">新增 vs 完成</div>
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+      <defs>
+        <linearGradient id="ag1-${sch.id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c1}" stop-opacity=".3"/><stop offset="100%" stop-color="${c1}" stop-opacity=".02"/></linearGradient>
+        <linearGradient id="ag2-${sch.id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c2}" stop-opacity=".22"/><stop offset="100%" stop-color="${c2}" stop-opacity=".01"/></linearGradient>
+      </defs>
+      ${grids}
+      <polygon points="${area1}" fill="url(#ag1-${sch.id})"/>
+      <polygon points="${area2}" fill="url(#ag2-${sch.id})"/>
+      <polyline points="${pts1}" fill="none" stroke="${c1}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      <polyline points="${pts2}" fill="none" stroke="${c2}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${d.series1.map((v,i)=>`<circle cx="${px(i)}" cy="${py(v)}" r="3" fill="${c1}"/>`).join('')}
+      ${d.series2.map((v,i)=>`<circle cx="${px(i)}" cy="${py(v)}" r="3" fill="${c2}"/>`).join('')}
+      ${xlabels}
+    </svg>
+    <div class="legend">
+      <div class="leg-item"><span class="leg-dot" style="background:${c1}"></span>新增任务</div>
+      <div class="leg-item"><span class="leg-dot" style="background:${c2}"></span>完成任务</div>
+    </div>
+  </div>`;
+}
+
+function buildBottom(sch) {
+  return `<div class="chart-row cols-2">
+    ${buildBarChart(sch)}
+    ${buildWorkload(sch)}
+  </div>
+  <div class="chart-row" style="margin-top:0">
+    ${buildProjectTable(sch)}
+  </div>`;
+}
+
+function buildBarChart(sch) {
+  const max=Math.max(...BAR_DATA.map(d=>d.val));
+  const c=sch.chartColors[0];
+  const bars=BAR_DATA.map((d,i)=>{
+    const pct=d.val/max*100;
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div class="num" style="width:64px;font-size:12px;color:${sch.c.muted};text-align:right;white-space:nowrap">${d.label}</div>
+      <div style="flex:1;background:${sch.c.surface};border-radius:4px;height:20px;overflow:hidden;border:1px solid ${sch.c.border}">
+        <div style="width:${pct}%;height:100%;background:${c};opacity:.85;border-radius:4px;transition:width .4s"></div>
+      </div>
+      <div class="num" style="width:24px;font-size:12px;color:${sch.c.text};font-weight:600">${d.val}</div>
+    </div>`;
+  }).join('');
+  return `<div class="chart-card">
+    <div class="chart-title">产品线项目分布</div>
+    <div class="chart-sub">各产品线项目数</div>
+    <div style="margin-top:4px">${bars}</div>
+  </div>`;
+}
+
+function buildWorkload(sch) {
+  const items=WORKLOAD.map(w=>{
+    const pct=w.val/w.max;
+    const color=pct>.8?sch.c.danger:pct>.6?sch.c.warn:sch.c.primary;
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+        <span style="font-size:12px;color:${sch.c.muted}">${w.name}</span>
+        <span class="num" style="font-size:12px;font-weight:700;color:${color}">${w.val}<span style="font-weight:400;color:${sch.c.muted}">/${w.max}</span></span>
+      </div>
+      <div style="height:8px;background:${sch.c.surface};border-radius:99px;overflow:hidden;border:1px solid ${sch.c.border}">
+        <div style="width:${pct*100}%;height:100%;background:${color};border-radius:99px;opacity:.85"></div>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="chart-card">
+    <div class="chart-title">人员工作负荷</div>
+    <div class="chart-sub">当前进行中任务数 / 上限10</div>
+    <div style="margin-top:8px">${items}</div>
+  </div>`;
+}
+
+function buildProjectTable(sch) {
+  const c=sch.c;
+  const sc={active:c.primary,review:c.warn,pending:c.muted,done:c.info};
+  const rows=PROJECTS.map(p=>`
+    <tr>
+      <td class="num" style="color:${c.muted}">${p.no}</td>
+      <td style="color:${c.text};font-weight:500">${p.name}</td>
+      <td><span class="status-dot" style="background:${sc[p.status]}"></span>${STATUS_LABELS[p.status]}</td>
+      <td>${p.pm}</td>
+      <td class="num" style="color:${p.status==='done'?c.info:c.muted}">${p.end}</td>
+    </tr>`).join('');
+  return `<div class="chart-card">
+    <div class="chart-title">最新项目</div>
+    <div class="chart-sub">近期活跃项目概览</div>
+    <table class="mini-table" style="margin-top:8px">
+      <thead><tr>
+        <th>项目编号</th><th>项目名称</th><th>状态</th><th>项目经理</th><th>截止</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+/* ---- init ---- */
+SCHEMES.forEach(s=>buildDash(s));
+</script>
+</body>
+</html>
