@@ -133,6 +133,7 @@ watch(() => props.task, async (val) => {
     assigneeId.value = val.assignee_id
     dateRange.value = (val.planned_start && val.planned_end) ? [val.planned_start, val.planned_end] : null
     autoSchedule.value = val.auto_schedule !== false
+    progressValue.value = val.progress || 0
     const [cRes, tRes, aRes, eRes] = await Promise.all([getComments(val.id), getTransitions(val.id), listAttachments(val.id), listEscalations(val.id)])
     comments.value = cRes.data
     transitions.value = tRes.data
@@ -223,6 +224,21 @@ async function handleAutoScheduleChange(val) {
     emit('refresh')
   } catch (e) {
     autoSchedule.value = !val
+  }
+}
+
+// 任务进度（active/review 可拖动报量，approve 自动 100）
+const progressValue = ref(0)
+const canEditProgress = computed(() => {
+  if (!props.task) return false
+  return canManageRelation.value && ['active', 'review'].includes(props.task.status)
+})
+async function handleProgressChange(val) {
+  try {
+    await updateTask(props.task.id, { progress: val })
+    ElMessage.success('进度已更新')
+  } catch (e) {
+    progressValue.value = props.task.progress || 0
   }
 }
 
@@ -410,6 +426,14 @@ function close() {
               style="width: 220px"
               @change="handleDateChange"
             />
+          </el-descriptions-item>
+          <el-descriptions-item label="进度">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <el-slider v-if="canEditProgress" v-model="progressValue" size="small" style="width: 140px"
+                         :format-tooltip="(v) => v + '%'" @change="handleProgressChange" />
+              <el-progress v-else :percentage="task.progress || 0" :stroke-width="8" style="width: 150px" />
+              <span style="font-size: 12px; color: var(--el-text-color-secondary); font-variant-numeric: tabular-nums">{{ progressValue }}%</span>
+            </div>
           </el-descriptions-item>
           <el-descriptions-item label="自动排期">
             <el-switch v-if="canManageRelation" v-model="autoSchedule" size="small" @change="handleAutoScheduleChange" />

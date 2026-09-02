@@ -253,6 +253,11 @@ const workloadBarOption = computed(() => ({
                 />
               </template>
             </el-table-column>
+            <el-table-column label="平均进度" width="80" align="center">
+              <template #default="{ row }">
+                <span style="font-variant-numeric: tabular-nums">{{ row.avg_progress ?? 0 }}%</span>
+              </template>
+            </el-table-column>
             <el-table-column prop="active" label="进行中" width="65" align="center">
               <template #default="{ row }"><span style="color: var(--el-color-primary)">{{ row.active }}</span></template>
             </el-table-column>

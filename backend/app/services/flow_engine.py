@@ -47,6 +47,7 @@ class FlowEngine:
             task.actual_start = date.today()
         if new_status == "done":
             task.actual_end = date.today()
+            task.progress = 100
         if action == "reject":
             task.rework_count += 1
             await self._on_task_rejected(task)

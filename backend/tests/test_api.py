@@ -454,3 +454,31 @@ async def test_schedule_propagation(client: AsyncClient, seeded_db):
     resp = await client.get(f"/api/tasks/{c['id']}", headers=headers)
     body = resp.json()
     assert body["planned_end"] == (date.fromisoformat(orig[c["id"]][1]) + timedelta(days=2)).isoformat()
+
+
+@pytest.mark.asyncio
+async def test_task_progress(client: AsyncClient, seeded_db):
+    headers = {"X-User-Id": "2"}  # pm01
+    pid, tasks = await _make_inited_project(client, "进度测试", pm_id=2, init_user=2)
+    t = tasks[0]  # active
+
+    # 更新进度 60
+    resp = await client.put(f"/api/tasks/{t['id']}", json={"progress": 60}, headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["progress"] == 60
+
+    # 越界 120 → 422
+    resp = await client.put(f"/api/tasks/{t['id']}", json={"progress": 120}, headers=headers)
+    assert resp.status_code == 422
+
+    # 审批通过后进度自动置 100
+    resp = await client.put(f"/api/tasks/{t['id']}/submit", json={}, headers=headers)
+    assert resp.status_code == 200
+    resp = await client.put(f"/api/tasks/{t['id']}/approve", json={}, headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["progress"] == 100
+
+    # 阶段统计带平均进度（done 计 100）：3 个任务 1 done 2 active(0) → 33.3
+    resp = await client.get("/api/dashboard/phase-stats", headers=headers)
+    stats = resp.json()
+    assert stats[t["phase"]]["avg_progress"] == 33.3

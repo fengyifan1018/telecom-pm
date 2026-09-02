@@ -145,6 +145,14 @@ async function saveField(row, patch) {
           <el-tag :type="STATUS_MAP[row.status]?.type" size="small">{{ STATUS_MAP[row.status]?.label }}</el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="进度" width="110" class-name="col-progress">
+        <template #default="{ row }">
+          <div class="progress-cell">
+            <el-progress :percentage="row.progress || 0" :stroke-width="6" :show-text="false" style="width: 60px" />
+            <span class="progress-cell__num">{{ row.progress || 0 }}%</span>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column label="负责人" width="90">
         <template #default="{ row }">{{ row.assignee_name || '—' }}</template>
       </el-table-column>
@@ -203,3 +211,21 @@ async function saveField(row, patch) {
                 @refresh="onRefresh" @view-project="(id) => $router.push(`/projects/${id}`)" />
   </div>
 </template>
+
+<style scoped>
+.progress-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.progress-cell__num {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 767px) {
+  :deep(.col-progress) {
+    display: none;
+  }
+}
+</style>

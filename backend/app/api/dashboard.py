@@ -94,6 +94,16 @@ async def phase_stats(
     for phase, count in overdue_result.all():
         if phase in phases:
             phases[phase]["overdue"] = count
+    # 平均进度（done 计 100），供报表加权展示
+    avg_result = await db.execute(
+        select(
+            Task.phase,
+            func.avg(case((Task.status == "done", 100), else_=Task.progress)),
+        ).group_by(Task.phase)
+    )
+    for phase, avg in avg_result.all():
+        if phase in phases:
+            phases[phase]["avg_progress"] = round(float(avg or 0), 1)
     return phases
 
 

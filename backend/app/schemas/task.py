@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class TaskResponse(BaseModel):
@@ -23,6 +23,7 @@ class TaskResponse(BaseModel):
     actual_end: Optional[date]
     estimated_days: int
     rework_count: int
+    progress: int = 0
     auto_schedule: bool = True
     created_at: datetime
     # 仅 PUT 更新排期时回传：本次联动顺延的后续任务数
@@ -37,6 +38,7 @@ class TaskUpdate(BaseModel):
     priority: Optional[int] = None
     description: Optional[str] = None
     auto_schedule: Optional[bool] = None
+    progress: Optional[int] = Field(default=None, ge=0, le=100)
 
 
 class TaskAssign(BaseModel):
