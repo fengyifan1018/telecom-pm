@@ -18,7 +18,7 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'refresh', 'view-project', 'navigate'])
 
 // 抽屉内上一条/下一条导航（调用方传入当前列表的任务 id 序列）
-const activeTab = ref('detail')
+const activeTab = ref('activity')
 const navIndex = computed(() => (props.task && props.peerIds.length ? props.peerIds.indexOf(props.task.id) : -1))
 const hasPrev = computed(() => navIndex.value > 0)
 const hasNext = computed(() => navIndex.value >= 0 && navIndex.value < props.peerIds.length - 1)
@@ -43,6 +43,11 @@ const canStart = computed(() => {
 const comments = ref([])
 const transitions = ref([])
 const newComment = ref('')
+// 评论 + 流转记录合并的动态时间线（时间升序）
+const activityFeed = computed(() => [
+  ...comments.value.map(c => ({ kind: 'comment', key: 'c' + c.id, ts: c.created_at || '', c })),
+  ...transitions.value.map(t => ({ kind: 'transition', key: 't' + t.id, ts: t.created_at || '', t })),
+].sort((x, y) => String(x.ts).localeCompare(String(y.ts))))
 const loading = ref(false)
 const users = ref([])
 const assigneeId = ref(null)
@@ -448,9 +453,7 @@ function close() {
         </el-button>
       </div>
 
-      <el-tabs v-model="activeTab">
-        <!-- 详情：基本信息 + 描述 + 前置与阻塞 -->
-        <el-tab-pane label="详情" name="detail">
+      <!-- 基本信息 + 描述 + 前置与阻塞（常驻） -->
           <div style="margin-bottom: 16px">
             <el-descriptions :column="2" border>
               <el-descriptions-item label="编号">{{ task.task_no }}</el-descriptions-item>
@@ -544,18 +547,26 @@ function close() {
             </el-select>
             <el-button size="small" type="primary" @click="handleAddRelation">添加</el-button>
           </div>
-        </el-tab-pane>
 
-        <!-- 评论 -->
-        <el-tab-pane :label="`评论 (${comments.length})`" name="comments">
+      <el-tabs v-model="activeTab">
+        <!-- 动态：评论 + 流转记录合并时间线 -->
+        <el-tab-pane :label="`动态 (${comments.length + transitions.length})`" name="activity">
           <div style="max-height: 480px; overflow-y: auto; margin-bottom: 12px">
-            <div v-for="c in comments" :key="c.id" class="comment-item">
-              <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-bottom: 4px">
-                {{ c.user_name || `用户${c.user_id}` }} · {{ formatDateTime(c.created_at) }}
+            <template v-for="item in activityFeed" :key="item.key">
+              <div v-if="item.kind === 'comment'" class="comment-item">
+                <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-bottom: 4px">
+                  {{ item.c.user_name || `用户${item.c.user_id}` }} · {{ formatDateTime(item.c.created_at) }}
+                </div>
+                <div style="font-size: 14px">{{ item.c.content }}</div>
               </div>
-              <div style="font-size: 14px">{{ c.content }}</div>
-            </div>
-            <EmptyState v-if="comments.length === 0" text="暂无评论" :size="36" />
+              <div v-else class="activity-line">
+                <span class="feed-meta">{{ formatDateTime(item.t.created_at) }}</span>
+                <span style="color: var(--el-color-primary)">{{ item.t.operator_name }}</span>:
+                {{ item.t.from_status || '(创建)' }} → {{ item.t.to_status }}
+                <span v-if="item.t.remark" style="color: var(--el-color-warning); margin-left: 8px">{{ item.t.remark }}</span>
+              </div>
+            </template>
+            <EmptyState v-if="activityFeed.length === 0" text="暂无动态" :size="36" />
           </div>
           <div style="display: flex; gap: 8px">
             <el-input v-model="newComment" placeholder="输入评论，支持 @用户名 提及..." @keyup.enter="handleComment" />
@@ -645,17 +656,6 @@ function close() {
           <EmptyState v-if="escalations.length === 0" text="暂无问题升级" :size="36" />
         </el-tab-pane>
 
-        <!-- 动态 -->
-        <el-tab-pane :label="`动态 (${transitions.length})`" name="transitions">
-          <el-timeline>
-            <el-timeline-item v-for="t in transitions" :key="t.id" :timestamp="formatDateTime(t.created_at)">
-              <span style="color: var(--el-color-primary)">{{ t.operator_name }}</span>:
-              {{ t.from_status || '(创建)' }} → {{ t.to_status }}
-              <span v-if="t.remark" style="color: var(--el-color-warning); margin-left: 8px">{{ t.remark }}</span>
-            </el-timeline-item>
-          </el-timeline>
-          <EmptyState v-if="transitions.length === 0" text="暂无流转记录" :size="36" />
-        </el-tab-pane>
       </el-tabs>
     </template>
   </el-drawer>
@@ -715,6 +715,17 @@ function close() {
   padding: 10px 12px;
   white-space: pre-wrap;
   line-height: 1.6;
+}
+.activity-line {
+  padding: 6px 2px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+.feed-meta {
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
+  margin-right: 8px;
+  font-variant-numeric: tabular-nums;
 }
 .comment-item {
   margin-bottom: 12px;
