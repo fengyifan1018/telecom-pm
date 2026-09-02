@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { getProject, initProject, updateProject, suspendProject, resumeProject, deleteProject } from '../api/projects'
+import { getProject, initProject, updateProject, suspendProject, resumeProject, deleteProject, getProjectActivity, getProjectOpenEscalations } from '../api/projects'
 import { listTasks, listUsers, assignTask } from '../api/tasks'
 import { STATUS_MAP, PRODUCT_TYPE_MAP, PHASE_MAP, PHASE_ORDER_BY_PRODUCT, PHASE_ORDER } from '../utils/constants'
 import PhaseProgress from '../components/PhaseProgress.vue'
@@ -10,7 +10,7 @@ import TaskDrawer from '../components/TaskDrawer.vue'
 import GanttChart from '../components/GanttChart.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import EmptyState from '../components/EmptyState.vue'
-import { formatDate } from '../utils/format'
+import { formatDate, timeAgo, todayStr } from '../utils/format'
 import { listCRs, createCR, approveCR, rejectCR } from '../api/change_requests'
 import { listDeliverables, uploadDeliverable, deleteDeliverable } from '../api/deliverables'
 import http from '../api/index'
@@ -25,7 +25,7 @@ const tasks = ref([])
 const loading = ref(true)
 const drawerVisible = ref(false)
 const selectedTask = ref(null)
-const activeTab = ref('list')
+const activeTab = ref('overview')
 const showEdit = ref(false)
 const editForm = ref({})
 const changeRequests = ref([])
@@ -42,6 +42,50 @@ const deliverableUploadPhase = ref('')
 const deliverableUploadRef = ref(null)
 const pmUsers = ref([])
 const members = ref([])
+const activity = ref([])
+const openEscalations = ref([])
+
+// ── 概览驾驶舱：健康信号 ──
+const today = todayStr()
+const overdueTasks = computed(() =>
+  tasks.value.filter(t => t.planned_end && t.planned_end < today && !['done', 'cancelled'].includes(t.status))
+)
+const doneCount = computed(() => tasks.value.filter(t => t.status === 'done').length)
+const activeCount = computed(() => tasks.value.filter(t => ['active', 'review'].includes(t.status)).length)
+const progressPct = computed(() => {
+  const base = tasks.value.filter(t => t.is_required)
+  const list = base.length ? base : tasks.value
+  if (!list.length) return 0
+  return Math.round(list.filter(t => t.status === 'done').length / list.length * 100)
+})
+// 验收阶段 = 模板倒数第二阶段；激活（含已完成）即"验收中"
+const inAcceptance = computed(() => {
+  const order = PHASE_ORDER_BY_PRODUCT[project.value?.product_type] || []
+  const acc = order[order.length - 2]
+  if (!acc) return false
+  return tasks.value.some(t => t.phase === acc && ['active', 'review', 'done'].includes(t.status))
+})
+const health = computed(() => {
+  if (inAcceptance.value && project.value?.status === 'active') return { label: '验收中', type: 'primary' }
+  if (openEscalations.value.length || overdueTasks.value.length) return { label: '有风险', type: 'danger' }
+  if (project.value?.planned_end && project.value.planned_end < today && !['completed', 'cancelled'].includes(project.value.status)) {
+    return { label: '已延期', type: 'warning' }
+  }
+  return { label: '正常', type: 'success' }
+})
+// 最近任务：未完成的按截止时间升序前 5 条
+const recentTasks = computed(() =>
+  tasks.value
+    .filter(t => !['done', 'cancelled'].includes(t.status))
+    .sort((x, y) => (x.planned_end || '9999') < (y.planned_end || '9999') ? -1 : 1)
+    .slice(0, 5)
+)
+const overviewStats = computed(() => [
+  { label: '任务总数', value: tasks.value.length, color: 'var(--el-color-primary)' },
+  { label: '已完成', value: doneCount.value, color: 'var(--el-color-success)' },
+  { label: '进行中', value: activeCount.value, color: 'var(--el-color-warning)' },
+  { label: '已延期', value: overdueTasks.value.length, color: 'var(--el-color-danger)' },
+])
 // 任务行内快捷指派（仅 PM/管理员）
 const canAssign = computed(() => ['pm', 'admin'].includes(auth.user?.role))
 async function quickAssign(row, userId) {
@@ -65,15 +109,19 @@ const groupedTasks = computed(() => {
 async function fetchData() {
   loading.value = true
   try {
-    const [pRes, tRes, crRes, dRes, uRes] = await Promise.all([
+    const [pRes, tRes, crRes, dRes, uRes, aRes, eRes] = await Promise.all([
       getProject(route.params.id),
       listTasks({ project_id: route.params.id, page_size: 100 }),
       listCRs(route.params.id),
       listDeliverables(route.params.id),
       listUsers(),
+      getProjectActivity(route.params.id).catch(() => []),
+      getProjectOpenEscalations(route.params.id).catch(() => []),
     ])
     pmUsers.value = (uRes.data || []).filter(u => u.role === 'pm')
     members.value = uRes.data || []
+    activity.value = aRes.data
+    openEscalations.value = eRes.data
     project.value = pRes.data
     tasks.value = tRes.data.items
     changeRequests.value = crRes.data
@@ -337,6 +385,7 @@ async function handleRejectCR() {
               <el-tag size="small">{{ project.project_no }}</el-tag>
               <el-tag :type="STATUS_MAP[project.status]?.type" size="small">{{ STATUS_MAP[project.status]?.label }}</el-tag>
               <el-tag type="info" size="small">{{ PRODUCT_TYPE_MAP[project.product_type] }}</el-tag>
+              <el-tag :type="health.type" size="small" effect="dark">● {{ health.label }}</el-tag>
             </el-space>
             <div style="margin-top: 8px; color: var(--el-text-color-secondary); font-size: 13px; display: flex; gap: 24px; flex-wrap: wrap">
               <span v-if="project.customer_name">客户：{{ project.customer_name }}</span>
@@ -345,7 +394,14 @@ async function handleRejectCR() {
               <span>计划周期：{{ project.planned_start || '-' }} ~ {{ project.planned_end || '-' }}</span>
             </div>
           </div>
-          <div style="display: flex; gap: 8px">
+          <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap">
+            <div style="min-width: 200px">
+              <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--el-text-color-secondary); margin-bottom: 4px">
+                <span>项目进度</span><span class="num" style="font-weight: bold">{{ progressPct }}%</span>
+              </div>
+              <el-progress :percentage="progressPct" :stroke-width="10" :show-text="false" />
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap">
             <el-button v-if="project.status === 'draft' && !isSales" type="primary" @click="handleInit">
               立项（生成任务）
             </el-button>
@@ -372,9 +428,26 @@ async function handleRejectCR() {
               type="danger"
               @click="handleDelete"
             >删除项目</el-button>
+            </div>
           </div>
         </div>
       </el-card>
+
+      <!-- Task Views -->
+      <el-card v-if="tasks.length > 0">
+        <div v-if="activeTab === 'list'" style="display: flex; justify-content: flex-end; margin-bottom: 8px">
+          <el-button size="small" @click="exportTasks">导出 Excel</el-button>
+        </div>
+        <el-tabs v-model="activeTab">
+      <!-- 概览统计 -->
+      <el-row :gutter="12" style="margin-bottom: 16px">
+        <el-col v-for="st in overviewStats" :key="st.label" :span="6">
+          <div class="ov-stat">
+            <div class="ov-stat__num num" :style="{ color: st.color }">{{ st.value }}</div>
+            <div class="ov-stat__label">{{ st.label }}</div>
+          </div>
+        </el-col>
+      </el-row>
 
       <!-- Project Details -->
       <el-card v-if="project.description" style="margin-bottom: 16px">
@@ -388,12 +461,57 @@ async function handleRejectCR() {
         <PhaseProgress :tasks="tasks" :product-type="project.product_type" />
       </el-card>
 
-      <!-- Task Views -->
-      <el-card v-if="tasks.length > 0">
-        <div style="display: flex; justify-content: flex-end; margin-bottom: 8px">
-          <el-button size="small" @click="exportTasks">导出 Excel</el-button>
-        </div>
-        <el-tabs v-model="activeTab">
+      <el-row :gutter="12" style="margin-bottom: 16px">
+        <el-col :span="12">
+          <el-card shadow="never" style="height: 100%">
+            <div class="section-label">风险 ({{ openEscalations.length + overdueTasks.length }})</div>
+            <template v-if="openEscalations.length || overdueTasks.length">
+              <div v-for="e in openEscalations" :key="e.id" class="ov-risk-item">
+                <el-tag :type="e.severity === 'critical' || e.severity === 'high' ? 'danger' : 'warning'" size="small">
+                  {{ { low: '低', medium: '中', high: '高', critical: '紧急' }[e.severity] }}
+                </el-tag>
+                <span class="ov-risk-title">{{ e.description }}</span>
+                <span class="ov-risk-meta">{{ e.task_no }} · {{ timeAgo(e.created_at) }}</span>
+              </div>
+              <div v-for="t in overdueTasks" :key="'od' + t.id" class="ov-risk-item">
+                <el-tag type="danger" size="small">超期</el-tag>
+                <span class="ov-risk-title">{{ t.title }}</span>
+                <span class="ov-risk-meta">{{ t.task_no }} · 截止 {{ t.planned_end }}</span>
+              </div>
+            </template>
+            <div v-else style="color: var(--el-text-color-secondary); font-size: 13px">暂无风险项</div>
+          </el-card>
+        </el-col>
+        <el-col :span="12">
+          <el-card shadow="never" style="height: 100%">
+            <div class="section-label">最近动态</div>
+            <div v-if="activity.length === 0" style="color: var(--el-text-color-secondary); font-size: 13px">暂无动态</div>
+            <div v-for="(a, i) in activity" :key="i" class="ov-activity-item">
+              <span style="color: var(--el-color-primary)">{{ a.operator_name }}</span>
+              <span style="font-size: 13px">{{ a.task_title }}（{{ a.from_status || '创建' }} → {{ a.to_status }}）</span>
+              <span class="ov-risk-meta" style="margin-left: auto">{{ timeAgo(a.created_at) }}</span>
+            </div>
+          </el-card>
+        </el-col>
+      </el-row>
+
+      <el-card shadow="never">
+        <div class="section-label">近期待办（按截止时间）</div>
+        <el-table :data="recentTasks" size="small" @row-click="openTask" highlight-current-row style="cursor: pointer">
+          <el-table-column prop="title" label="任务" min-width="220" show-overflow-tooltip />
+          <el-table-column prop="assignee_name" label="负责人" width="120">
+            <template #default="{ row }">{{ row.assignee_name || '—' }}</template>
+          </el-table-column>
+          <el-table-column label="截止" width="110">
+            <template #default="{ row }">{{ row.planned_end || '—' }}</template>
+          </el-table-column>
+          <el-table-column label="状态" width="90">
+            <template #default="{ row }">
+              <el-tag :type="STATUS_MAP[row.status]?.type" size="small">{{ STATUS_MAP[row.status]?.label }}</el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-card>
           <el-tab-pane label="任务列表" name="list">
             <div v-for="group in groupedTasks" :key="group.phase" style="margin-bottom: 20px">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px">
