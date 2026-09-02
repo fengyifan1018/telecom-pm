@@ -452,7 +452,7 @@ function close() {
         <!-- 详情：基本信息 + 描述 + 前置与阻塞 -->
         <el-tab-pane label="详情" name="detail">
           <div style="margin-bottom: 16px">
-            <el-descriptions :column="2" border size="small">
+            <el-descriptions :column="2" border>
               <el-descriptions-item label="编号">{{ task.task_no }}</el-descriptions-item>
               <el-descriptions-item label="阶段">{{ PHASE_MAP[task.phase] }}</el-descriptions-item>
               <el-descriptions-item label="状态">

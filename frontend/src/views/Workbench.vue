@@ -113,7 +113,7 @@ function isOverdue(task) {
     <el-card>
       <el-tabs v-model="activeTab">
         <el-tab-pane :label="`进行中 (${myTasks.length})`" name="active">
-          <el-table v-if="myTasks.length" stripe :data="myTasks" style="width: 100%" @row-click="openTask" highlight-current-row size="small">
+          <el-table v-if="myTasks.length" stripe :data="myTasks" style="width: 100%" @row-click="openTask" highlight-current-row>
             <el-table-column prop="task_no" label="编号" width="160" class-name="col-task-no" />
             <el-table-column prop="title" label="任务" min-width="180" show-overflow-tooltip/>
             <el-table-column v-if="scope === 'all'" label="负责人" width="110">
@@ -135,7 +135,7 @@ function isOverdue(task) {
           </EmptyState>
         </el-tab-pane>
         <el-tab-pane :label="`待审核 (${reviewTasks.length})`" name="review">
-          <el-table v-if="reviewTasks.length" stripe :data="reviewTasks" style="width: 100%" @row-click="openTask" highlight-current-row size="small">
+          <el-table v-if="reviewTasks.length" stripe :data="reviewTasks" style="width: 100%" @row-click="openTask" highlight-current-row>
             <el-table-column prop="task_no" label="编号" width="160" class-name="col-task-no" />
             <el-table-column prop="title" label="任务" min-width="180" show-overflow-tooltip/>
             <el-table-column v-if="scope === 'all'" label="负责人" width="110">
@@ -149,7 +149,7 @@ function isOverdue(task) {
           <EmptyState v-else text="暂无待审核任务" />
         </el-tab-pane>
         <el-tab-pane :label="`已完成 (${doneTasks.length})`" name="done">
-          <el-table v-if="doneTasks.length" stripe :data="doneTasks" style="width: 100%" @row-click="openTask" highlight-current-row size="small">
+          <el-table v-if="doneTasks.length" stripe :data="doneTasks" style="width: 100%" @row-click="openTask" highlight-current-row>
             <el-table-column prop="task_no" label="编号" width="160" class-name="col-task-no" />
             <el-table-column prop="title" label="任务" min-width="180" show-overflow-tooltip/>
             <el-table-column v-if="scope === 'all'" label="负责人" width="110">
@@ -168,7 +168,7 @@ function isOverdue(task) {
               超期 ({{ overdueTasks.length }})
             </span>
           </template>
-          <el-table v-if="overdueTasks.length" stripe :data="overdueTasks" style="width: 100%" @row-click="openTask" highlight-current-row size="small">
+          <el-table v-if="overdueTasks.length" stripe :data="overdueTasks" style="width: 100%" @row-click="openTask" highlight-current-row>
             <el-table-column prop="task_no" label="编号" width="160" class-name="col-task-no" />
             <el-table-column prop="title" label="任务" min-width="180" show-overflow-tooltip/>
             <el-table-column v-if="scope === 'all'" label="负责人" width="110">
