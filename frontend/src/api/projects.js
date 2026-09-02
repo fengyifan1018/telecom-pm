@@ -3,6 +3,8 @@ import http from './index'
 export const listProjects = (params) => http.get('/projects', { params })
 
 export const getProject = (id) => http.get(`/projects/${id}`)
+export const getProjectActivity = (id, limit = 8) => http.get(`/projects/${id}/activity`, { params: { limit } })
+export const getProjectOpenEscalations = (id) => http.get(`/projects/${id}/open-escalations`)
 
 export const createProject = (data) => http.post('/projects', data)
 

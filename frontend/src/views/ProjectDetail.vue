@@ -439,6 +439,7 @@ async function handleRejectCR() {
           <el-button size="small" @click="exportTasks">导出 Excel</el-button>
         </div>
         <el-tabs v-model="activeTab">
+        <el-tab-pane label="概览" name="overview">
       <!-- 概览统计 -->
       <el-row :gutter="12" style="margin-bottom: 16px">
         <el-col v-for="st in overviewStats" :key="st.label" :span="6">
@@ -512,6 +513,7 @@ async function handleRejectCR() {
           </el-table-column>
         </el-table>
       </el-card>
+        </el-tab-pane>
           <el-tab-pane label="任务列表" name="list">
             <div v-for="group in groupedTasks" :key="group.phase" style="margin-bottom: 20px">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px">

@@ -575,3 +575,35 @@ async def test_project_health_list(client: AsyncClient, seeded_db):
     item = resp.json()["items"][0]
     assert item["overdue_count"] == 0
     assert item["progress_pct"] > 0  # 1/26 完成
+
+
+@pytest.mark.asyncio
+async def test_project_overview_extras(client: AsyncClient, seeded_db):
+    headers = {"X-User-Id": "2"}  # pm01
+    pid, tasks = await _make_inited_project(client, "概览数据测试", pm_id=2, init_user=2)
+    t = tasks[0]
+
+    # 提交产生一条流转记录
+    resp = await client.put(f"/api/tasks/{t['id']}/submit", json={}, headers=headers)
+    assert resp.status_code == 200
+    # 造一个未解决升级
+    resp = await client.post(f"/api/tasks/{t['id']}/escalations", json={
+        "severity": "high", "description": "设备到货延迟"}, headers=headers)
+    assert resp.status_code == 201
+
+    # 项目动态：包含该流转，带任务号/操作人
+    resp = await client.get(f"/api/projects/{pid}/activity?limit=5", headers=headers)
+    assert resp.status_code == 200
+    items = resp.json()
+    assert len(items) >= 1
+    assert items[0]["task_no"] == t["task_no"]
+    assert items[0]["operator_name"] == "李四(项目经理)"
+    assert items[0]["from_status"] == "active" and items[0]["to_status"] == "review"
+
+    # 未解决升级：能查到且带任务信息
+    resp = await client.get(f"/api/projects/{pid}/open-escalations", headers=headers)
+    assert resp.status_code == 200
+    esc = resp.json()
+    assert len(esc) == 1
+    assert esc[0]["task_no"] == t["task_no"]
+    assert esc[0]["severity"] == "high"

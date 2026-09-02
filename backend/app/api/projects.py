@@ -8,6 +8,7 @@ from app.dependencies import get_db, get_current_user
 from app.permissions import require_roles, require_permission
 from app.models.project import Project, Customer
 from app.models.task import Task, TaskDependency, TaskTransition
+from app.models.escalation import TaskEscalation
 from app.models.suspension import ProjectSuspension
 from app.models.notification import Notification
 from app.models.comment import Comment
@@ -225,6 +226,69 @@ async def update_project(
     await db.commit()
     await db.refresh(project)
     return project
+
+
+@router.get("/{project_id}/activity")
+async def project_activity(
+    project_id: int,
+    limit: int = Query(8, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """项目最近动态：任务流转记录（时间倒序）。"""
+    if not await db.get(Project, project_id):
+        raise HTTPException(status_code=404, detail="Project not found")
+    rows = await db.execute(
+        select(TaskTransition, Task.task_no, Task.title, User.display_name)
+        .join(Task, Task.id == TaskTransition.task_id)
+        .join(User, User.id == TaskTransition.operator_id)
+        .where(Task.project_id == project_id)
+        .order_by(TaskTransition.created_at.desc())
+        .limit(limit)
+    )
+    return [
+        {
+            "task_id": tr.task_id,
+            "task_no": task_no,
+            "task_title": title,
+            "operator_name": operator,
+            "from_status": tr.from_status,
+            "to_status": tr.to_status,
+            "remark": tr.remark,
+            "created_at": tr.created_at,
+        }
+        for tr, task_no, title, operator in rows.all()
+    ]
+
+
+@router.get("/{project_id}/open-escalations")
+async def project_open_escalations(
+    project_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """项目未解决问题升级（风险区数据源）。"""
+    if not await db.get(Project, project_id):
+        raise HTTPException(status_code=404, detail="Project not found")
+    rows = await db.execute(
+        select(TaskEscalation, Task.task_no, Task.title)
+        .join(Task, Task.id == TaskEscalation.task_id)
+        .where(Task.project_id == project_id, TaskEscalation.status == "open")
+        .order_by(TaskEscalation.created_at.desc())
+    )
+    return [
+        {
+            "id": esc.id,
+            "severity": esc.severity,
+            "description": esc.description,
+            "status": esc.status,
+            "created_at": esc.created_at,
+            "task_id": esc.task_id,
+            "task_no": task_no,
+            "task_title": title,
+        }
+        for esc, task_no, title in rows.all()
+    ]
 
 
 @router.post("/{project_id}/init", response_model=list[TaskResponse])
