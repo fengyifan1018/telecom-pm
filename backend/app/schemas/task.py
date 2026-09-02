@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
@@ -38,6 +38,13 @@ class TaskUpdate(BaseModel):
 class TaskAssign(BaseModel):
     assignee_id: int
     reviewer_id: Optional[int] = None
+
+
+class RelationCreate(BaseModel):
+    relation_type: Literal["precedes", "blocks"]
+    related_task_id: int
+    # in：related 指向当前任务（related 是我的前置/阻塞我的任务）；out：当前任务指向 related
+    direction: Literal["in", "out"] = "in"
 
 
 class TaskAction(BaseModel):

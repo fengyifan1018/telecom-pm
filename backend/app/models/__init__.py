@@ -1,6 +1,6 @@
 from app.models.user import User
 from app.models.project import Project, Customer
-from app.models.task import Task, TaskDependency, TaskTransition
+from app.models.task import Task, TaskDependency, TaskTransition, TaskRelation
 from app.models.workflow_template import WorkflowTemplate
 from app.models.comment import Comment
 from app.models.notification import Notification
@@ -20,6 +20,7 @@ __all__ = [
     "Task",
     "TaskDependency",
     "TaskTransition",
+    "TaskRelation",
     "WorkflowTemplate",
     "Comment",
     "Notification",

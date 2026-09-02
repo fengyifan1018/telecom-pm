@@ -3,8 +3,9 @@ from datetime import datetime, date
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.task import Task, TaskTransition
+from app.models.task import Task, TaskTransition, TaskRelation
 from app.models.workflow_template import WorkflowTemplate
+from app.timeutil import now_cn
 
 VALID_TRANSITIONS: dict[tuple[str, str], str] = {
     ("pending", "activate"): "active",
@@ -30,10 +31,17 @@ class FlowEngine:
         if new_status is None:
             raise ValueError(f"Invalid transition: {task.status} + {action}")
 
+        # blocks 卡点：存在未完结的阻塞任务时不允许开始（提交/审批不拦，避免死锁——完成反而解除阻塞）
+        if action == "activate":
+            blockers = await self._active_blockers(task)
+            if blockers:
+                b = blockers[0]
+                raise ValueError(f"被任务 {b.task_no}（{b.title}）阻塞，需先完成")
+
         old_status = task.status
         task.status = new_status
         task.version += 1
-        task.updated_at = datetime.utcnow()
+        task.updated_at = now_cn()
 
         if new_status == "active" and task.actual_start is None:
             task.actual_start = date.today()
@@ -61,6 +69,19 @@ class FlowEngine:
         if not await self._is_phase_complete(task.project_id, task.phase):
             return
         await self._activate_next_phases(task.project_id, task.phase)
+
+    async def _active_blockers(self, task: Task) -> list[Task]:
+        result = await self.db.execute(
+            select(Task)
+            .join(TaskRelation, TaskRelation.from_task_id == Task.id)
+            .where(
+                TaskRelation.relation_type == "blocks",
+                TaskRelation.to_task_id == task.id,
+                Task.status.notin_(["done", "cancelled"]),
+            )
+            .order_by(Task.task_no)
+        )
+        return list(result.scalars().all())
 
     async def _is_phase_complete(self, project_id: int, phase: str) -> bool:
         result = await self.db.execute(
@@ -107,10 +128,29 @@ class FlowEngine:
             )
         )
         tasks = result.scalars().all()
+        # 阶段激活同样尊重 blocks 卡点：被阻塞的任务保持 pending（阻塞解除后可手动开始）
+        blocked_ids = await self._blocked_task_ids([t.id for t in tasks])
         for t in tasks:
+            if t.id in blocked_ids:
+                continue
             t.status = "active"
             t.actual_start = date.today()
             t.version += 1
+
+    async def _blocked_task_ids(self, task_ids: list[int]) -> set[int]:
+        """返回 task_ids 中存在未完结阻塞方的任务 id 集合。"""
+        if not task_ids:
+            return set()
+        result = await self.db.execute(
+            select(TaskRelation.to_task_id)
+            .join(Task, Task.id == TaskRelation.from_task_id)
+            .where(
+                TaskRelation.relation_type == "blocks",
+                TaskRelation.to_task_id.in_(task_ids),
+                Task.status.notin_(["done", "cancelled"]),
+            )
+        )
+        return {r[0] for r in result.all()}
 
     async def _check_project_completion(self, project):
         result = await self.db.execute(
@@ -156,7 +196,7 @@ class FlowEngine:
         for t in result.scalars().all():
             t.status = "blocked"
             t.version += 1
-            t.updated_at = datetime.utcnow()
+            t.updated_at = now_cn()
 
     @staticmethod
     def _downstream_phases(phases: list, source: str) -> set[str]:

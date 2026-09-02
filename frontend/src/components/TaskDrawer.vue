@@ -1,7 +1,9 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
-import { startTask, submitTask, approveTask, rejectTask, assignTask, updateTask, getComments, addComment, getTransitions, listUsers, listAttachments, uploadAttachment, deleteAttachment, getAttachmentDownloadUrl, listEscalations, createEscalation, resolveEscalation } from '../api/tasks'
+import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
+import { startTask, submitTask, approveTask, rejectTask, assignTask, updateTask, getComments, addComment, getTransitions, listUsers, listAttachments, uploadAttachment, deleteAttachment, getAttachmentDownloadUrl, listEscalations, createEscalation, resolveEscalation, listTasks, getTaskRelations, addTaskRelation, deleteTaskRelation } from '../api/tasks'
 import http from '../api/index'
+import EmptyState from './EmptyState.vue'
 import { STATUS_MAP, PHASE_MAP, ROLE_MAP } from '../utils/constants'
 import { formatDateTime } from '../utils/format'
 import { useAuthStore } from '../stores/auth'
@@ -11,8 +13,16 @@ const props = defineProps({
   task: { type: Object, default: null },
   visible: { type: Boolean, default: false },
   showProjectLink: { type: Boolean, default: false },
+  peerIds: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['update:visible', 'refresh', 'view-project'])
+const emit = defineEmits(['update:visible', 'refresh', 'view-project', 'navigate'])
+
+// 抽屉内上一条/下一条导航（调用方传入当前列表的任务 id 序列）
+const navIndex = computed(() => (props.task && props.peerIds.length ? props.peerIds.indexOf(props.task.id) : -1))
+const hasPrev = computed(() => navIndex.value > 0)
+const hasNext = computed(() => navIndex.value >= 0 && navIndex.value < props.peerIds.length - 1)
+function goPrev() { if (hasPrev.value) emit('navigate', props.peerIds[navIndex.value - 1]) }
+function goNext() { if (hasNext.value) emit('navigate', props.peerIds[navIndex.value + 1]) }
 
 const auth = useAuthStore()
 
@@ -45,6 +55,74 @@ const escalations = ref([])
 const showEscalationForm = ref(false)
 const escalationForm = ref({ severity: 'medium', description: '' })
 
+// 任务关系（precedes 前置 / blocks 阻塞）
+const relations = ref({ predecessors: [], successors: [], blocking: [], blocked: [] })
+const relationGroups = [
+  { key: 'predecessors', label: '前置任务' },
+  { key: 'blocking', label: '阻塞中' },
+  { key: 'successors', label: '后续任务' },
+  { key: 'blocked', label: '正在阻塞' },
+]
+const relationTotal = computed(() => Object.values(relations.value).reduce((s, arr) => s + arr.length, 0))
+const canManageRelation = computed(() => {
+  if (!props.task) return false
+  return ['pm', 'admin'].includes(auth.user?.role) || props.task.assignee_id === auth.user?.id
+})
+const relationTypes = [
+  { value: 'precedes', label: '前置任务' },
+  { value: 'blocks', label: '阻塞我的任务' },
+]
+const newRelation = ref({ relation_type: 'precedes', related_task_id: null })
+const relationOptions = ref([])
+const relationSearching = ref(false)
+
+async function loadRelations(taskId) {
+  const res = await getTaskRelations(taskId)
+  relations.value = res.data
+}
+
+async function searchRelationTasks(query) {
+  if (!query) { relationOptions.value = []; return }
+  relationSearching.value = true
+  try {
+    const res = await listTasks({ keyword: query, page_size: 20 })
+    relationOptions.value = res.data.items
+      .filter(t => t.id !== props.task?.id)
+      .map(t => ({ id: t.id, label: `${t.task_no} ${t.title}（${t.project_name}）` }))
+  } finally {
+    relationSearching.value = false
+  }
+}
+
+async function handleAddRelation() {
+  if (!newRelation.value.related_task_id) {
+    ElMessage.warning('请先搜索并选择任务')
+    return
+  }
+  try {
+    await addTaskRelation(props.task.id, {
+      relation_type: newRelation.value.relation_type,
+      related_task_id: newRelation.value.related_task_id,
+    })
+    ElMessage.success('关系已添加')
+    newRelation.value.related_task_id = null
+    relationOptions.value = []
+    await loadRelations(props.task.id)
+  } catch {
+    // 错误提示由全局拦截器统一处理
+  }
+}
+
+async function handleDeleteRelation(relationId) {
+  try {
+    await deleteTaskRelation(relationId)
+    ElMessage.success('关系已删除')
+    await loadRelations(props.task.id)
+  } catch {
+    // 错误提示由全局拦截器统一处理
+  }
+}
+
 onMounted(async () => {
   const res = await listUsers()
   users.value = res.data
@@ -59,6 +137,7 @@ watch(() => props.task, async (val) => {
     transitions.value = tRes.data
     attachments.value = aRes.data
     escalations.value = eRes.data
+    loadRelations(val.id)
   }
 })
 
@@ -283,10 +362,20 @@ function close() {
 <template>
   <el-drawer :model-value="visible" @update:model-value="close" :size="isMobile ? '100%' : '550px'" :title="task?.title">
     <template v-if="task">
-      <div v-if="showProjectLink" style="margin-bottom: 12px">
-        <el-button link type="primary" size="small" @click="emit('view-project', task.project_id)">
+      <div v-if="showProjectLink || peerIds.length > 1" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between">
+        <el-button v-if="showProjectLink" link type="primary" size="small" @click="emit('view-project', task.project_id)">
           查看所属项目 →
         </el-button>
+        <span v-else></span>
+        <div v-if="peerIds.length > 1" class="drawer-nav">
+          <el-button link size="small" :disabled="!hasPrev" @click="goPrev">
+            <el-icon><ArrowLeft /></el-icon>
+          </el-button>
+          <span class="drawer-nav__count">{{ navIndex + 1 }} / {{ peerIds.length }}</span>
+          <el-button link size="small" :disabled="!hasNext" @click="goNext">
+            <el-icon><ArrowRight /></el-icon>
+          </el-button>
+        </div>
       </div>
       <div style="margin-bottom: 16px">
         <el-descriptions :column="2" border size="small">
@@ -356,7 +445,35 @@ function close() {
       </div>
 
       <!-- Attachments -->
-      <el-divider content-position="left">附件 ({{ attachments.length }})</el-divider>
+      <el-divider content-position="left">前置与阻塞 ({{ relationTotal }})</el-divider>
+    <div style="margin-bottom: 12px">
+      <template v-for="g in relationGroups" :key="g.key">
+        <div v-if="relations[g.key].length">
+          <div class="relation-group__label">{{ g.label }}</div>
+          <div v-for="item in relations[g.key]" :key="item.relation_id" class="relation-item">
+            <el-tag :type="STATUS_MAP[item.status]?.type" size="small">{{ STATUS_MAP[item.status]?.label }}</el-tag>
+            <span class="relation-item__no">{{ item.task_no }}</span>
+            <span class="relation-item__title">{{ item.title }}</span>
+            <span class="relation-item__project">{{ item.project_name }}</span>
+            <el-button v-if="canManageRelation" link type="danger" size="small" @click="handleDeleteRelation(item.relation_id)">删除</el-button>
+          </div>
+        </div>
+      </template>
+      <div v-if="relationTotal === 0" style="color: var(--el-text-color-secondary); font-size: 13px; margin-bottom: 8px">暂无关联任务</div>
+      <div v-if="canManageRelation" style="display: flex; gap: 8px; margin-top: 8px">
+        <el-select v-model="newRelation.relation_type" size="small" style="width: 130px">
+          <el-option v-for="t in relationTypes" :key="t.value" :label="t.label" :value="t.value" />
+        </el-select>
+        <el-select v-model="newRelation.related_task_id" size="small" style="width: 250px" filterable remote clearable
+                   :remote-method="searchRelationTasks" :loading="relationSearching"
+                   placeholder="搜索任务编号/标题后添加">
+          <el-option v-for="o in relationOptions" :key="o.id" :label="o.label" :value="o.id" />
+        </el-select>
+        <el-button size="small" type="primary" @click="handleAddRelation">添加</el-button>
+      </div>
+    </div>
+
+    <el-divider content-position="left">附件 ({{ attachments.length }})</el-divider>
       <div style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap">
         <el-upload
           :auto-upload="false"
@@ -443,7 +560,7 @@ function close() {
           </div>
           <div style="font-size: 14px">{{ c.content }}</div>
         </div>
-        <el-empty v-if="comments.length === 0" description="暂无评论" :image-size="60" />
+        <EmptyState v-if="comments.length === 0" text="暂无评论" :size="36" />
       </div>
       <div style="display: flex; gap: 8px">
         <el-input v-model="newComment" placeholder="输入评论，支持 @用户名 提及..." @keyup.enter="handleComment" />
@@ -499,5 +616,47 @@ function close() {
   border-radius: 4px;
   margin-bottom: 8px;
   background: #fef0f0;
+}
+.drawer-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.drawer-nav__count {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+  text-align: center;
+}
+.relation-group__label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin: 6px 0 4px;
+}
+.relation-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.relation-item__no {
+  color: var(--el-text-color-secondary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.relation-item__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--el-text-color-primary);
+}
+.relation-item__project {
+  color: var(--el-text-color-placeholder);
+  font-size: 12px;
+  flex-shrink: 0;
 }
 </style>

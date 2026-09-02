@@ -1,19 +1,21 @@
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_current_user
 from app.permissions import require_roles, require_permission
-from app.models.task import Task
+from app.models.task import Task, TaskRelation
+from app.models.project import Project
 from app.models.user import User
 from app.schemas.task import (
     TaskResponse, TaskUpdate, TaskAssign, TaskAction,
-    TaskTransitionResponse, CommentCreate, CommentResponse,
+    TaskTransitionResponse, CommentCreate, CommentResponse, RelationCreate,
 )
 from app.services import task_service
 from app.services.flow_engine import FlowEngine
-from app.services.notification_service import notify
+from app.services.notification_service import notify, notify_mentions
 from app.services.audit_service import log_action
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
@@ -238,6 +240,129 @@ async def get_transitions(
     return await task_service.get_task_transitions(db, task_id)
 
 
+async def _relation_summary(db: AsyncSession, relation: TaskRelation, other_task_id: int) -> dict:
+    """关系条目摘要（另一端任务 + 所属项目名）。"""
+    other = await db.get(Task, other_task_id)
+    project = await db.get(Project, other.project_id) if other else None
+    return {
+        "relation_id": relation.id,
+        "relation_type": relation.relation_type,
+        "task_id": other_task_id,
+        "task_no": other.task_no if other else "",
+        "title": other.title if other else "",
+        "status": other.status if other else "",
+        "project_name": project.name if project else "",
+    }
+
+
+@router.get("/{task_id}/relations")
+async def get_relations(
+    task_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = await db.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    async def edges(where_column, value):
+        result = await db.execute(
+            select(TaskRelation).where(where_column == value, TaskRelation.relation_type.in_(["precedes", "blocks"]))
+        )
+        return result.scalars().all()
+
+    groups = {"predecessors": [], "successors": [], "blocking": [], "blocked": []}
+    for rel in await edges(TaskRelation.to_task_id, task_id):  # 指向我的边
+        if rel.relation_type == "precedes":
+            groups["predecessors"].append(await _relation_summary(db, rel, rel.from_task_id))
+        else:
+            groups["blocking"].append(await _relation_summary(db, rel, rel.from_task_id))
+    for rel in await edges(TaskRelation.from_task_id, task_id):  # 我指出的边
+        if rel.relation_type == "precedes":
+            groups["successors"].append(await _relation_summary(db, rel, rel.to_task_id))
+        else:
+            groups["blocked"].append(await _relation_summary(db, rel, rel.to_task_id))
+    return groups
+
+
+@router.post("/{task_id}/relations", status_code=201)
+async def create_relation(
+    task_id: int,
+    data: RelationCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = await db.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if current_user.role not in ("pm", "admin") and task.assignee_id != current_user.id:
+        raise HTTPException(status_code=403, detail="只有负责人或项目经理可以维护任务关系")
+    related = await db.get(Task, data.related_task_id)
+    if not related:
+        raise HTTPException(status_code=404, detail="Related task not found")
+    if related.id == task.id:
+        raise HTTPException(status_code=400, detail="不能与任务自身建立关系")
+
+    # in：related 指向当前任务；out：当前任务指向 related
+    if data.direction == "in":
+        from_tid, to_tid = related.id, task.id
+    else:
+        from_tid, to_tid = task.id, related.id
+
+    dup = await db.execute(
+        select(TaskRelation).where(
+            TaskRelation.from_task_id == from_tid,
+            TaskRelation.to_task_id == to_tid,
+            TaskRelation.relation_type == data.relation_type,
+        )
+    )
+    if dup.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="关系已存在")
+
+    if data.relation_type == "precedes":
+        # 成环检测：沿 precedes 出边从 to 出发，若能回到 from 则成环
+        seen, stack = set(), [to_tid]
+        while stack:
+            cur = stack.pop()
+            if cur == from_tid:
+                raise HTTPException(status_code=400, detail="不能建立关系：存在循环依赖")
+            if cur in seen or len(seen) > 500:
+                continue
+            seen.add(cur)
+            res = await db.execute(
+                select(TaskRelation.to_task_id).where(
+                    TaskRelation.relation_type == "precedes",
+                    TaskRelation.from_task_id == cur,
+                )
+            )
+            stack.extend(r[0] for r in res.all())
+
+    rel = TaskRelation(
+        from_task_id=from_tid, to_task_id=to_tid,
+        relation_type=data.relation_type, created_by=current_user.id,
+    )
+    db.add(rel)
+    await db.commit()
+    await db.refresh(rel)
+    return {"relation_id": rel.id, "relation_type": rel.relation_type,
+            "from_task_id": rel.from_task_id, "to_task_id": rel.to_task_id}
+
+
+@router.delete("/relations/{relation_id}", status_code=204)
+async def delete_relation(
+    relation_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    rel = await db.get(TaskRelation, relation_id)
+    if not rel:
+        raise HTTPException(status_code=404, detail="Relation not found")
+    if current_user.role not in ("pm", "admin") and rel.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="只有创建者或项目经理可以删除关系")
+    await db.delete(rel)
+    await db.commit()
+
+
 @router.post("/{task_id}/comments", response_model=CommentResponse, status_code=201)
 async def add_comment(
     task_id: int,
@@ -251,6 +376,11 @@ async def add_comment(
     comment = await task_service.add_comment(db, task_id, current_user.id, data.content)
     await db.commit()
     await db.refresh(comment)
+    await notify_mentions(
+        db, data.content, current_user.id, task.title,
+        related_task_id=task.id, related_project_id=task.project_id,
+    )
+    await db.commit()
     return comment
 
 

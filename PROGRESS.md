@@ -287,6 +287,27 @@ npm run dev   # 默认 http://localhost:5173, proxy /api -> 8000
 12. **PM 项目隔离** — `list_projects` 支持 `pm_scope_id`（PM只看自己负责+未指派的项目）；`get_project` / `update_project` / `init_project` / `suspend/resume` 均加 `_assert_pm_access` 检查
 13. **菜单权限动态化** — 新增 6 个 `menu.*` 权限项（reports/templates/customers/users/groups/permissions）；`GET /api/permissions/me` 返回当前用户权限列表；auth store 登录时拉取并缓存权限；`Layout.vue` 侧边栏菜单改为 `auth.hasPermission('menu.xxx')` 动态显示，可在权限管理页实时调整
 
+### Session 7（走查反馈优化）
+
+1. **时间体系统一东八区** — 新增 `app/timeutil.now_cn()`，替换全部模型默认值/业务时间戳的 `datetime.utcnow`（JWT exp 保留 UTC aware）；存量数据一次性 +8h 迁移（185 行）；前端 `todayStr()` 改本地时区（原来 UTC，早8点前会把"今天"算成昨天）
+2. **评论 @提及通知** — `notify_mentions()`：解析 @用户名/@显示名前缀（如 @李四 命中「李四(项目经理)」），排除作者去重后逐个发站内通知；`add_comment` 端点接入；补测试
+3. **立项自动排期** — `generate_tasks_from_template` 按模板 `depends_on` 依赖拓扑推算各阶段起止（阶段内任务并行、时长取最大 estimated_days），全部任务预填 `planned_start/planned_end`，立项后甘特图立即可用；补测试断言
+4. **工作台全局/我的切换** — `my-workbench` 支持 `scope=all`（admin/pm/operations 可用），前端 PageHeader 加 radio 切换；全局模式任务列表显示负责人列；四个 tab 空态与表格二选一渲染，消除"暂无数据"双层提示
+5. **看板全量加载** — `fetchKanban` 分页循环拉全（上限 1000 条），超出提示用筛选缩小范围，替代原 `page_size: 200` 静默截断
+6. **任务行快捷指派** — 项目详情任务表负责人列对 PM/管理员渲染内联下拉（`@click.stop` 防触发行点击），选中即调指派接口并刷新
+7. **UI 细节** — 顶栏显式白底消除与侧边栏色差；登录页移除 ICP 占位文案；项目列表"销售"列加宽 + tooltip；`getDashboard` 支持传参
+
+### Session 8（OpenProject 借鉴 · M1 交互速赢 + M2 任务关系）
+
+1. **M1 筛选状态进 URL** — 任务页（含 view 模式，URL 优先于 localStorage）与项目列表页筛选与 `route.query` 双向同步（`router.replace`），可分享/刷新不丢
+2. **M1 抽屉上一条/下一条** — `TaskDrawer` 新增 `peerIds`/`navigate` 协议，头部显示 ‹ n/N ›；接入任务列表/工作台（跟随 tab）/项目详情三处
+3. **M1 表格内联编辑** — 任务列表优先级/截止列点击进入编辑态（保留逾期红字/彩色标签视觉），权限沿用 canStart；坑：行内控件需 `@click.stop` 包裹，否则冒泡触发行点击开抽屉并顶掉下拉
+4. **M1 空态行动按钮** — 工作台空态"去任务页领任务"；项目列表区分"筛选无结果→清除筛选"与"无数据→新建项目"（按 `project.create` 权限显隐）；抽屉评论区 `el-empty` 统一为 `EmptyState`
+5. **M2 任务关系 precedes/blocks** — 新表 `task_relations`（唯一约束 from+to+type，created_by）；`GET/POST /tasks/{id}/relations`、`DELETE /tasks/relations/{id}`；precedes 建边 DFS 环检测（上限 500）；**blocks 卡点在 FlowEngine `activate` 动作拦截**（提交/审批不拦，避免死锁）；前端抽屉"前置与阻塞"区块（四组列表+远程搜索添加+删除）
+6. **坑：v-for 与 v-show 同元素** — 本项目 Vue 版本下 v-show 的 display 不随数据更新（与 Session 6 的 v-if+v-for 同元素崩溃同类），改用 `template v-for` + 内部 `v-if` 解决
+7. **激活绕过修复** — 阶段自动激活（`_activate_phase`）原来直接把 pending 置 active，绕过 blocks 卡点；现在激活时过滤存在未完结阻塞方的任务（保持 pending，阻塞解除后可手动开始）。与手动开始的双轨语义已统一
+8. **遗留死表** — `task_dependencies` 从未被写入（仅删项目时清理），待后续确认后移除
+
 ## 当前已注册路由汇总（65+个端点）
 
 - `auth`: login, me

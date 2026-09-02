@@ -1,10 +1,11 @@
 from datetime import datetime, date
 from typing import Optional
 
-from sqlalchemy import String, DateTime, Date, Integer, Boolean, ForeignKey, Text
+from sqlalchemy import String, DateTime, Date, Integer, Boolean, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.timeutil import now_cn
 
 
 class Task(Base):
@@ -29,8 +30,8 @@ class Task(Base):
     estimated_days: Mapped[int] = mapped_column(Integer, default=1)
     rework_count: Mapped[int] = mapped_column(Integer, default=0)
     version: Mapped[int] = mapped_column(Integer, default=1)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn, onupdate=now_cn)
 
 
 class TaskDependency(Base):
@@ -42,6 +43,22 @@ class TaskDependency(Base):
     dependency_type: Mapped[str] = mapped_column(String(20), default="finish_to_start")
 
 
+class TaskRelation(Base):
+    """任务间业务关系：precedes（前置，日期联动的依据）/ blocks（阻塞，流转卡点）。
+
+    from → to 语义：from_task 在前（precedes）或 from_task 阻塞 to_task（blocks）。
+    """
+    __tablename__ = "task_relations"
+    __table_args__ = (UniqueConstraint("from_task_id", "to_task_id", "relation_type"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    from_task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"), index=True)
+    to_task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"), index=True)
+    relation_type: Mapped[str] = mapped_column(String(20))  # precedes / blocks
+    created_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn)
+
+
 class TaskTransition(Base):
     __tablename__ = "task_transitions"
 
@@ -51,4 +68,4 @@ class TaskTransition(Base):
     to_status: Mapped[str] = mapped_column(String(20))
     operator_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     remark: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn)

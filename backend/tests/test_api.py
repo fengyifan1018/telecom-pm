@@ -63,6 +63,12 @@ async def test_project_crud_and_init(client: AsyncClient, seeded_db):
     assert resp.status_code == 200
     assert resp.json()["total"] == 26
 
+    # 立项自动排期：所有任务都应带 planned_start/planned_end
+    assert all(t["planned_start"] and t["planned_end"] for t in tasks)
+    # 阶段顺序：后续阶段开始日期不早于其前置阶段结束日期
+    starts = [t["planned_start"] for t in tasks]
+    assert max(starts) >= min(starts)
+
 
 @pytest.mark.asyncio
 async def test_task_flow_actions(client: AsyncClient, seeded_db):
@@ -118,6 +124,19 @@ async def test_comments(client: AsyncClient, seeded_db):
     resp = await client.get(f"/api/tasks/{task_id}/comments", headers=headers)
     assert resp.status_code == 200
     assert len(resp.json()) == 1
+
+    # @提及：评论里 @pm01 应给用户2（pm01）生成 mention 通知
+    resp = await client.post(
+        f"/api/tasks/{task_id}/comments",
+        json={"content": "请 @pm01 关注一下"},
+        headers={"X-User-Id": "1"},
+    )
+    assert resp.status_code == 201
+    resp = await client.get("/api/notifications", headers={"X-User-Id": "2"})
+    assert resp.status_code == 200
+    data = resp.json()
+    items = data if isinstance(data, list) else data.get("items", [])
+    assert any(n["type"] == "mention" for n in items)
 
 
 @pytest.mark.asyncio
@@ -282,3 +301,108 @@ async def test_single_task_access_scoped(client: AsyncClient, seeded_db):
     # 未指派的任务不可通过 PUT 越权修改
     resp = await client.put(f"/api/tasks/{other}", json={"priority": 1}, headers={"X-User-Id": "5"})
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_task_relations_and_blocks(client: AsyncClient, seeded_db):
+    headers = {"X-User-Id": "2"}  # pm01
+    pid, tasks = await _make_inited_project(client, "关系卡点测试", pm_id=2, init_user=2)
+    a = tasks[0]  # 第一阶段任务（active）
+    b = next(t for t in tasks if t["phase"] != a["phase"])  # 其他阶段任务（pending）
+
+    # 1. 建立 precedes：a 前置于 b
+    resp = await client.post(f"/api/tasks/{b['id']}/relations", json={
+        "relation_type": "precedes", "related_task_id": a["id"],
+    }, headers=headers)
+    assert resp.status_code == 201
+
+    # 双向回显：b 的前置含 a；a 的后续含 b
+    resp = await client.get(f"/api/tasks/{b['id']}/relations", headers=headers)
+    assert any(t["task_id"] == a["id"] for t in resp.json()["predecessors"])
+    resp = await client.get(f"/api/tasks/{a['id']}/relations", headers=headers)
+    assert any(t["task_id"] == b["id"] for t in resp.json()["successors"])
+
+    # 2. 重复关系 → 409
+    resp = await client.post(f"/api/tasks/{b['id']}/relations", json={
+        "relation_type": "precedes", "related_task_id": a["id"],
+    }, headers=headers)
+    assert resp.status_code == 409
+
+    # 3. 自引用 → 400
+    resp = await client.post(f"/api/tasks/{a['id']}/relations", json={
+        "relation_type": "precedes", "related_task_id": a["id"],
+    }, headers=headers)
+    assert resp.status_code == 400
+
+    # 4. 环：反向再建 precedes（b 前置于 a）应被拒绝
+    resp = await client.post(f"/api/tasks/{a['id']}/relations", json={
+        "relation_type": "precedes", "related_task_id": b["id"],
+    }, headers=headers)
+    assert resp.status_code == 400
+    assert "循环" in resp.json()["detail"]
+
+    # 5. blocks 卡点：a 阻塞 b → b 无法开始
+    resp = await client.post(f"/api/tasks/{b['id']}/relations", json={
+        "relation_type": "blocks", "related_task_id": a["id"],
+    }, headers=headers)
+    assert resp.status_code == 201
+    resp = await client.put(f"/api/tasks/{b['id']}/start", json={}, headers=headers)
+    assert resp.status_code == 400
+    assert "阻塞" in resp.json()["detail"]
+    # 阻塞组回显
+    resp = await client.get(f"/api/tasks/{b['id']}/relations", headers=headers)
+    assert any(t["task_id"] == a["id"] for t in resp.json()["blocking"])
+
+    # 6. 完成 a（submit + approve）后 b 可开始
+    resp = await client.put(f"/api/tasks/{a['id']}/submit", json={}, headers=headers)
+    assert resp.status_code == 200
+    resp = await client.put(f"/api/tasks/{a['id']}/approve", json={}, headers=headers)
+    assert resp.status_code == 200
+    resp = await client.put(f"/api/tasks/{b['id']}/start", json={}, headers=headers)
+    assert resp.status_code == 200
+
+    # 7. 删除关系 → 204 且列表不再包含
+    resp = await client.get(f"/api/tasks/{b['id']}/relations", headers=headers)
+    rel_id = resp.json()["predecessors"][0]["relation_id"]
+    resp = await client.delete(f"/api/tasks/relations/{rel_id}", headers=headers)
+    assert resp.status_code == 204
+    resp = await client.get(f"/api/tasks/{b['id']}/relations", headers=headers)
+    assert not any(t["relation_id"] == rel_id for t in resp.json()["predecessors"])
+
+
+@pytest.mark.asyncio
+async def test_phase_activation_respects_blocks(client: AsyncClient, seeded_db):
+    headers = {"X-User-Id": "2"}  # pm01
+    pid, tasks = await _make_inited_project(client, "激活卡点测试", pm_id=2, init_user=2)
+    phase1 = [t for t in tasks if t["phase"] == tasks[0]["phase"]]
+    later_phase_tasks = [t for t in tasks if t["phase"] == "resource_confirm"]
+    later, blocker = later_phase_tasks[0], later_phase_tasks[1]
+    others = later_phase_tasks[2:]
+
+    # 同阶段的 blocker 阻塞 later
+    resp = await client.post(f"/api/tasks/{later['id']}/relations", json={
+        "relation_type": "blocks", "related_task_id": blocker["id"],
+    }, headers=headers)
+    assert resp.status_code == 201
+
+    # 完成第一阶段，触发 resource_confirm 阶段自动激活
+    for t in phase1:
+        resp = await client.put(f"/api/tasks/{t['id']}/submit", json={}, headers=headers)
+        assert resp.status_code == 200
+        resp = await client.put(f"/api/tasks/{t['id']}/approve", json={}, headers=headers)
+        assert resp.status_code == 200
+
+    # 阶段已激活：未被阻塞的任务 active，blocker 本身也 active，被阻塞的 later 保持 pending
+    resp = await client.get(f"/api/tasks?project_id={pid}&page_size=100", headers=headers)
+    by_id = {t["id"]: t["status"] for t in resp.json()["items"]}
+    assert others and all(by_id[t["id"]] == "active" for t in others)
+    assert by_id[blocker["id"]] == "active"
+    assert by_id[later["id"]] == "pending"
+
+    # 完成 blocker → 手动开始 later 放行
+    resp = await client.put(f"/api/tasks/{blocker['id']}/submit", json={}, headers=headers)
+    assert resp.status_code == 200
+    resp = await client.put(f"/api/tasks/{blocker['id']}/approve", json={}, headers=headers)
+    assert resp.status_code == 200
+    resp = await client.put(f"/api/tasks/{later['id']}/start", json={}, headers=headers)
+    assert resp.status_code == 200
