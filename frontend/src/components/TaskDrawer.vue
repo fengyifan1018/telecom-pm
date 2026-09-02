@@ -132,6 +132,7 @@ watch(() => props.task, async (val) => {
   if (val) {
     assigneeId.value = val.assignee_id
     dateRange.value = (val.planned_start && val.planned_end) ? [val.planned_start, val.planned_end] : null
+    autoSchedule.value = val.auto_schedule !== false
     const [cRes, tRes, aRes, eRes] = await Promise.all([getComments(val.id), getTransitions(val.id), listAttachments(val.id), listEscalations(val.id)])
     comments.value = cRes.data
     transitions.value = tRes.data
@@ -202,13 +203,26 @@ async function handleDateChange(val) {
   if (!val) return
   dateLoading.value = true
   try {
-    await updateTask(props.task.id, { planned_start: val[0], planned_end: val[1] })
-    ElMessage.success('排期已更新')
+    const res = await updateTask(props.task.id, { planned_start: val[0], planned_end: val[1] })
+    const n = res.data?.rescheduled || 0
+    ElMessage.success(n > 0 ? `排期已更新，已联动顺延 ${n} 个后续任务` : '排期已更新')
     emit('refresh')
   } catch (e) {
     // 错误提示由全局拦截器统一处理
   } finally {
     dateLoading.value = false
+  }
+}
+
+// 自动排期联动开关（前置任务改期时自动顺延本任务）
+const autoSchedule = ref(true)
+async function handleAutoScheduleChange(val) {
+  try {
+    await updateTask(props.task.id, { auto_schedule: val })
+    ElMessage.success(val ? '已开启自动排期联动' : '已锁定为手动排期')
+    emit('refresh')
+  } catch (e) {
+    autoSchedule.value = !val
   }
 }
 
@@ -396,6 +410,10 @@ function close() {
               style="width: 220px"
               @change="handleDateChange"
             />
+          </el-descriptions-item>
+          <el-descriptions-item label="自动排期">
+            <el-switch v-if="canManageRelation" v-model="autoSchedule" size="small" @change="handleAutoScheduleChange" />
+            <span v-else style="font-size: 13px">{{ task.auto_schedule === false ? '手动' : '自动' }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="负责人" :span="2">
             <div style="display: flex; align-items: center; gap: 8px">

@@ -406,3 +406,51 @@ async def test_phase_activation_respects_blocks(client: AsyncClient, seeded_db):
     assert resp.status_code == 200
     resp = await client.put(f"/api/tasks/{later['id']}/start", json={}, headers=headers)
     assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_schedule_propagation(client: AsyncClient, seeded_db):
+    from datetime import date, timedelta
+
+    headers = {"X-User-Id": "2"}  # pm01
+    pid, tasks = await _make_inited_project(client, "排期联动测试", pm_id=2, init_user=2)
+    phase2 = [t for t in tasks if t["phase"] == "resource_confirm"]
+    a, b, c = phase2[0], phase2[1], phase2[2]
+    orig = {t["id"]: (t["planned_start"], t["planned_end"]) for t in (a, b, c)}
+
+    # 建链：a precedes b precedes c
+    resp = await client.post(f"/api/tasks/{b['id']}/relations", json={
+        "relation_type": "precedes", "related_task_id": a["id"]}, headers=headers)
+    assert resp.status_code == 201
+    resp = await client.post(f"/api/tasks/{c['id']}/relations", json={
+        "relation_type": "precedes", "related_task_id": b["id"]}, headers=headers)
+    assert resp.status_code == 201
+
+    # 改 a 的排期整体 +2 → b/c 自动顺延 2 天
+    new_start = (date.fromisoformat(a["planned_start"]) + timedelta(days=2)).isoformat()
+    new_end = (date.fromisoformat(a["planned_end"]) + timedelta(days=2)).isoformat()
+    resp = await client.put(f"/api/tasks/{a['id']}", json={
+        "planned_start": new_start, "planned_end": new_end}, headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["rescheduled"] == 2
+
+    for tid in (b["id"], c["id"]):
+        resp = await client.get(f"/api/tasks/{tid}", headers=headers)
+        body = resp.json()
+        assert body["planned_start"] == (date.fromisoformat(orig[tid][0]) + timedelta(days=2)).isoformat()
+        assert body["planned_end"] == (date.fromisoformat(orig[tid][1]) + timedelta(days=2)).isoformat()
+
+    # b 锁定手动排期 → 再改 a +1：链条在 b 处停止，b/c 均不动
+    resp = await client.put(f"/api/tasks/{b['id']}", json={"auto_schedule": False}, headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["auto_schedule"] is False
+    newer_start = (date.fromisoformat(new_start) + timedelta(days=1)).isoformat()
+    newer_end = (date.fromisoformat(new_end) + timedelta(days=1)).isoformat()
+    resp = await client.put(f"/api/tasks/{a['id']}", json={
+        "planned_start": newer_start, "planned_end": newer_end}, headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["rescheduled"] == 0
+
+    resp = await client.get(f"/api/tasks/{c['id']}", headers=headers)
+    body = resp.json()
+    assert body["planned_end"] == (date.fromisoformat(orig[c["id"]][1]) + timedelta(days=2)).isoformat()

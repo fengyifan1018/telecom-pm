@@ -30,6 +30,8 @@ class Task(Base):
     estimated_days: Mapped[int] = mapped_column(Integer, default=1)
     rework_count: Mapped[int] = mapped_column(Integer, default=0)
     version: Mapped[int] = mapped_column(Integer, default=1)
+    # 排期联动开关：True 时前置任务（precedes）改期会自动顺延本任务
+    auto_schedule: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn, onupdate=now_cn)
 

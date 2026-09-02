@@ -306,7 +306,8 @@ npm run dev   # 默认 http://localhost:5173, proxy /api -> 8000
 5. **M2 任务关系 precedes/blocks** — 新表 `task_relations`（唯一约束 from+to+type，created_by）；`GET/POST /tasks/{id}/relations`、`DELETE /tasks/relations/{id}`；precedes 建边 DFS 环检测（上限 500）；**blocks 卡点在 FlowEngine `activate` 动作拦截**（提交/审批不拦，避免死锁）；前端抽屉"前置与阻塞"区块（四组列表+远程搜索添加+删除）
 6. **坑：v-for 与 v-show 同元素** — 本项目 Vue 版本下 v-show 的 display 不随数据更新（与 Session 6 的 v-if+v-for 同元素崩溃同类），改用 `template v-for` + 内部 `v-if` 解决
 7. **激活绕过修复** — 阶段自动激活（`_activate_phase`）原来直接把 pending 置 active，绕过 blocks 卡点；现在激活时过滤存在未完结阻塞方的任务（保持 pending，阻塞解除后可手动开始）。与手动开始的双轨语义已统一
-8. **遗留死表** — `task_dependencies` 从未被写入（仅删项目时清理），待后续确认后移除
+8. **M2-T6 排期联动重排** — `Task.auto_schedule` 开关（默认开，migrate.py 加列）+ `schedule_service.propagate()`：PUT 改排期时沿 precedes 链 BFS 顺推后续任务（整体平移保持工期），锁定任务不移动也不向后传播，链长上限 200，响应回传 `rescheduled` 数量，前端 toast 提示；抽屉排期区新增"自动排期"开关。跨项目 precedes 链同样生效
+9. **遗留死表** — `task_dependencies` 从未被写入（仅删项目时清理），待后续确认后移除
 
 ## 当前已注册路由汇总（65+个端点）
 

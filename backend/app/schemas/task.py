@@ -23,7 +23,10 @@ class TaskResponse(BaseModel):
     actual_end: Optional[date]
     estimated_days: int
     rework_count: int
+    auto_schedule: bool = True
     created_at: datetime
+    # 仅 PUT 更新排期时回传：本次联动顺延的后续任务数
+    rescheduled: Optional[int] = None
 
     model_config = {"from_attributes": True}
 
@@ -33,6 +36,7 @@ class TaskUpdate(BaseModel):
     planned_end: Optional[date] = None
     priority: Optional[int] = None
     description: Optional[str] = None
+    auto_schedule: Optional[bool] = None
 
 
 class TaskAssign(BaseModel):

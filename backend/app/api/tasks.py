@@ -84,11 +84,17 @@ async def update_task(
     current_user: User = Depends(get_current_user),
 ):
     task = await _get_visible_task(db, task_id, current_user)
-    for field, value in data.model_dump(exclude_none=True).items():
+    old_end = task.planned_end
+    # exclude_unset：允许把 auto_schedule 置为 False（exclude_none 会丢掉 False 值）
+    for field, value in data.model_dump(exclude_unset=True).items():
         setattr(task, field, value)
+    rescheduled = 0
+    if task.planned_end != old_end:
+        from app.services import schedule_service
+        rescheduled = await schedule_service.propagate(db, task, old_end, task.planned_end)
     await db.commit()
     await db.refresh(task)
-    return task
+    return TaskResponse.model_validate(task).model_copy(update={"rescheduled": rescheduled})
 
 
 @router.put("/{task_id}/assign", response_model=TaskResponse)

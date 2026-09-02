@@ -10,6 +10,7 @@ MIGRATIONS = [
     # (table, column, definition)
     ("tasks", "estimated_days", "INTEGER NOT NULL DEFAULT 1"),
     ("tasks", "version",        "INTEGER NOT NULL DEFAULT 1"),
+    ("tasks", "auto_schedule",  "BOOLEAN NOT NULL DEFAULT 1"),
 ]
 
 
