@@ -9,7 +9,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { PieChart } from 'echarts/charts'
 import { TooltipComponent, LegendComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
-import { Folder, Loading, CircleCheck, Document, DataAnalysis, AlarmClock } from '@element-plus/icons-vue'
+import { Suitcase, FolderOpened, CircleCheck, List, DataAnalysis, AlarmClock } from '@element-plus/icons-vue'
 
 use([CanvasRenderer, PieChart, TooltipComponent, LegendComponent])
 
@@ -39,10 +39,10 @@ const stats = computed(() => wb.value?.stats || {})
 const health = computed(() => wb.value?.project_health || {})
 
 const statCards = computed(() => wb.value ? [
-  { label: '项目总数', value: stats.value.project_total, icon: Folder, color: 'var(--el-color-primary)' },
-  { label: '进行中项目', value: stats.value.project_active, icon: Loading, color: 'var(--el-color-warning)' },
+  { label: '项目总数', value: stats.value.project_total, icon: Suitcase, color: 'var(--el-color-primary)' },
+  { label: '进行中项目', value: stats.value.project_active, icon: FolderOpened, color: 'var(--el-color-warning)' },
   { label: '已完成项目', value: stats.value.project_completed, icon: CircleCheck, color: 'var(--el-color-success)' },
-  { label: '总任务数', value: stats.value.task_total, icon: Document, color: 'var(--el-color-info)' },
+  { label: '总任务数', value: stats.value.task_total, icon: List, color: 'var(--el-color-info)' },
   { label: '任务完成率', value: stats.value.completion_pct + '%', icon: DataAnalysis, color: 'var(--el-color-primary)' },
   { label: '延期任务', value: stats.value.task_overdue, icon: AlarmClock, color: 'var(--el-color-danger)' },
 ] : [])
