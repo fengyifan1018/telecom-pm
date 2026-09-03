@@ -698,23 +698,8 @@ function close() {
   margin-bottom: 8px;
   background: var(--el-color-danger-light-9);
 }
-.section-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-title);
-  margin: 16px 0 8px;
-}
 .detail-block {
   margin-bottom: 4px;
-}
-.task-description {
-  font-size: 13px;
-  color: var(--el-text-color-regular);
-  background: var(--el-fill-color-lighter);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  white-space: pre-wrap;
-  line-height: 1.6;
 }
 .activity-line {
   padding: 6px 2px;

@@ -762,15 +762,6 @@ async function handleRejectCR() {
 </template>
 
 <style scoped>
-.ov-stat {
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color-light);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
 .ov-stat__icon {
   width: 40px;
   height: 40px;
@@ -780,7 +771,6 @@ async function handleRejectCR() {
   justify-content: center;
   flex-shrink: 0;
 }
-.ov-stat__num { font-size: 28px; font-weight: bold; font-variant-numeric: tabular-nums; }
 .ov-stat__label { font-size: 13px; color: var(--el-text-color-secondary); }
 .ov-phase-item {
   display: flex;
@@ -811,35 +801,6 @@ async function handleRejectCR() {
   border-radius: 50%;
   background: var(--el-color-primary);
 }
-.ov-risk-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  font-size: 13px;
-}
-.ov-risk-title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--el-text-color-primary);
-}
-.ov-risk-meta {
-  font-size: 12px;
-  color: var(--el-text-color-placeholder);
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
-}
-.ov-activity-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 0;
-  font-size: 13px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-}
 .ov-health-row {
   display: flex;
   justify-content: space-between;
@@ -847,22 +808,6 @@ async function handleRejectCR() {
   padding: 5px 0;
   border-bottom: 1px solid var(--el-border-color-lighter);
 }
-.section-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-title);
-  margin: 14px 0 8px;
-}
-.task-description {
-  font-size: 14px;
-  color: var(--el-text-color-regular);
-  background: var(--el-fill-color-lighter);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  white-space: pre-wrap;
-  line-height: 1.7;
-}
-.ov-stat__num { font-size: 28px; }
 </style>
 
 <style scoped>

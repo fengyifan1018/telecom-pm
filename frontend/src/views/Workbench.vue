@@ -253,15 +253,6 @@ const severityLabel = (s) => ({ low: '低', medium: '中', high: '高', critical
 </template>
 
 <style scoped>
-.ov-stat {
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color-light);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
 .ov-stat__icon {
   width: 40px;
   height: 40px;
@@ -270,12 +261,6 @@ const severityLabel = (s) => ({ low: '低', medium: '中', high: '高', critical
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
-.section-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-title);
-  margin: 0 0 10px;
 }
 .wb-greeting {
   display: flex;
@@ -348,33 +333,4 @@ const severityLabel = (s) => ({ low: '低', medium: '中', high: '高', critical
 .due-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--el-text-color-primary); }
 .due-project { font-size: 12px; color: var(--el-text-color-placeholder); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .due-date { color: var(--el-text-color-secondary); }
-.ov-risk-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  font-size: 13px;
-}
-.ov-risk-title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--el-text-color-primary);
-}
-.ov-risk-meta {
-  font-size: 12px;
-  color: var(--el-text-color-placeholder);
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
-}
-.ov-activity-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 0;
-  font-size: 13px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-}
 </style>
