@@ -6,7 +6,7 @@ import { getProject, initProject, updateProject, suspendProject, resumeProject, 
 import { listTasks, listUsers, assignTask } from '../api/tasks'
 import { STATUS_MAP, PRODUCT_TYPE_MAP, PHASE_MAP, PHASE_ORDER_BY_PRODUCT, PHASE_ORDER } from '../utils/constants'
 import PhaseProgress from '../components/PhaseProgress.vue'
-import { Tickets, CircleCheck, Clock, AlarmClock } from '@element-plus/icons-vue'
+import { Tickets, CircleCheck, Clock, AlarmClock, ArrowDown, OfficeBuilding } from '@element-plus/icons-vue'
 import TaskDrawer from '../components/TaskDrawer.vue'
 import GanttChart from '../components/GanttChart.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -81,6 +81,14 @@ const recentTasks = computed(() =>
     .sort((x, y) => (x.planned_end || '9999') < (y.planned_end || '9999') ? -1 : 1)
     .slice(0, 5)
 )
+function handleMoreCommand(cmd) {
+  if (cmd === 'edit') openEdit()
+  else if (cmd === 'suspend') handleSuspend()
+  else if (cmd === 'resume') handleResume()
+  else if (cmd === 'cancel') handleCancel()
+  else if (cmd === 'delete') handleDelete()
+}
+
 const overviewStats = computed(() => [
   { label: '任务总数', value: tasks.value.length, color: 'var(--el-color-primary)', icon: Tickets },
   { label: '已完成', value: doneCount.value, color: 'var(--el-color-success)', icon: CircleCheck },
@@ -400,27 +408,27 @@ async function handleRejectCR() {
 <template>
   <div v-loading="loading">
     <template v-if="project">
-      <el-breadcrumb separator="/" style="margin-bottom: 12px">
-        <el-breadcrumb-item :to="{ path: '/projects' }">项目管理</el-breadcrumb-item>
-        <el-breadcrumb-item>{{ project.project_no }}</el-breadcrumb-item>
-      </el-breadcrumb>
-
       <!-- Header -->
       <el-card style="margin-bottom: 16px">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start">
-          <div>
-            <h3 style="margin: 0 0 8px">{{ project.name }}</h3>
-            <el-space>
-              <el-tag size="small">{{ project.project_no }}</el-tag>
-              <el-tag :type="STATUS_MAP[project.status]?.type" size="small">{{ STATUS_MAP[project.status]?.label }}</el-tag>
-              <el-tag type="info" size="small">{{ PRODUCT_TYPE_MAP[project.product_type] }}</el-tag>
-              <el-tag :type="health.type" size="small" effect="dark">● {{ health.label }}</el-tag>
-            </el-space>
-            <div style="margin-top: 8px; color: var(--el-text-color-secondary); font-size: 13px; display: flex; gap: 24px; flex-wrap: wrap">
-              <span v-if="project.customer_name">客户：{{ project.customer_name }}</span>
-              <span v-if="project.sales_name">销售：{{ project.sales_name }}</span>
-              <span v-if="project.pm_name">项目经理：{{ project.pm_name }}</span>
-              <span>计划周期：{{ project.planned_start || '-' }} ~ {{ project.planned_end || '-' }}</span>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 24px">
+          <div style="display: flex; gap: 16px; min-width: 0">
+            <div class="project-icon">
+              <el-icon :size="26" color="#fff"><OfficeBuilding /></el-icon>
+            </div>
+            <div style="min-width: 0">
+              <h3 style="margin: 0 0 8px">{{ project.name }}</h3>
+              <el-space>
+                <el-tag size="small">{{ project.project_no }}</el-tag>
+                <el-tag :type="STATUS_MAP[project.status]?.type" size="small">{{ STATUS_MAP[project.status]?.label }}</el-tag>
+                <el-tag type="info" size="small">{{ PRODUCT_TYPE_MAP[project.product_type] }}</el-tag>
+                <el-tag :type="health.type" size="small" effect="dark">● {{ health.label }}</el-tag>
+              </el-space>
+              <div style="margin-top: 8px; color: var(--el-text-color-secondary); font-size: 13px; display: flex; gap: 24px; flex-wrap: wrap">
+                <span v-if="project.customer_name">客户：{{ project.customer_name }}</span>
+                <span v-if="project.sales_name">销售：{{ project.sales_name }}</span>
+                <span v-if="project.pm_name">项目经理：{{ project.pm_name }}</span>
+                <span>计划周期：{{ project.planned_start || '-' }} ~ {{ project.planned_end || '-' }}</span>
+              </div>
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap">
@@ -430,33 +438,25 @@ async function handleRejectCR() {
               </div>
               <el-progress :percentage="progressPct" :stroke-width="10" :show-text="false" />
             </div>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap">
-            <el-button v-if="project.status === 'draft' && !isSales" type="primary" @click="handleInit">
-              立项（生成任务）
-            </el-button>
-            <el-button @click="openEdit">编辑</el-button>
-            <el-button
-              v-if="project.status === 'active'"
-              type="warning"
-              plain
-              @click="handleSuspend"
-            >暂停</el-button>
-            <el-button
-              v-if="project.status === 'suspended'"
-              type="success"
-              @click="handleResume"
-            >恢复</el-button>
-            <el-button
-              v-if="project.status !== 'completed' && project.status !== 'cancelled'"
-              type="danger"
-              plain
-              @click="handleCancel"
-            >取消项目</el-button>
-            <el-button
-              v-if="isAdmin && project.status === 'cancelled'"
-              type="danger"
-              @click="handleDelete"
-            >删除项目</el-button>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
+              <el-button v-if="project.status === 'draft' && !isSales" type="primary" @click="handleInit">
+                立项（生成任务）
+              </el-button>
+              <el-dropdown @command="handleMoreCommand">
+                <el-button>
+                  更多操作
+                  <el-icon style="margin-left: 4px"><ArrowDown /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="edit">编辑项目</el-dropdown-item>
+                    <el-dropdown-item v-if="project.status === 'active'" command="suspend">暂停项目</el-dropdown-item>
+                    <el-dropdown-item v-if="project.status === 'suspended'" command="resume">恢复项目</el-dropdown-item>
+                    <el-dropdown-item v-if="project.status !== 'completed' && project.status !== 'cancelled'" command="cancel" divided>取消项目</el-dropdown-item>
+                    <el-dropdown-item v-if="isAdmin && project.status === 'cancelled'" command="delete" divided>删除项目</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </div>
           </div>
         </div>
@@ -590,7 +590,7 @@ async function handleRejectCR() {
           <el-tab-pane label="任务列表" name="list">
             <div v-for="group in groupedTasks" :key="group.phase" style="margin-bottom: 20px">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px">
-                <h4 style="margin: 0; color: var(--el-text-color-primary)">{{ group.name }}</h4>
+                <h4 style="margin: 0; font-size: 14px; font-weight: 600; color: var(--el-text-color-primary)">{{ group.name }}</h4>
                 <el-upload
                   :auto-upload="false"
                   :show-file-list="false"
@@ -780,7 +780,7 @@ async function handleRejectCR() {
   justify-content: center;
   flex-shrink: 0;
 }
-.ov-stat__num { font-size: 24px; font-weight: bold; font-variant-numeric: tabular-nums; }
+.ov-stat__num { font-size: 28px; font-weight: bold; font-variant-numeric: tabular-nums; }
 .ov-stat__label { font-size: 13px; color: var(--el-text-color-secondary); }
 .ov-phase-item {
   display: flex;
@@ -817,5 +817,34 @@ async function handleRejectCR() {
   font-size: 13px;
   padding: 5px 0;
   border-bottom: 1px solid var(--el-border-color-lighter);
+}
+.section-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-title);
+  margin: 14px 0 8px;
+}
+.task-description {
+  font-size: 14px;
+  color: var(--el-text-color-regular);
+  background: var(--el-fill-color-lighter);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  line-height: 1.7;
+}
+.ov-stat__num { font-size: 28px; }
+</style>
+
+<style scoped>
+.project-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: var(--el-color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 </style>

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { ROLE_MAP } from '../utils/constants'
 import { ElMessage } from 'element-plus'
@@ -9,15 +9,25 @@ import {
   OfficeBuilding, User, UserFilled, Lock, Tickets,
   Avatar, RefreshRight, Warning, AlarmClock, WarnTriangleFilled,
   CircleCheck, CircleClose, CircleCheckFilled, Promotion, ChatDotRound, Bell,
-  Fold, Menu,
+  Fold, Expand, Menu,
 } from '@element-plus/icons-vue'
 import { getNotifications, getUnreadCount, markNotificationRead, markAllRead } from '../api/tasks'
 import http from '../api/index'
 import BrandLogo from './BrandLogo.vue'
+import GlobalSearch from './GlobalSearch.vue'
 import { formatDateTime } from '../utils/format'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
+// 侧边栏收起（顶栏汉堡切换）
+const isCollapse = ref(false)
+// 顶栏面包屑：首页 / 当前页面
+const breadcrumbs = computed(() => {
+  const crumbs = [{ path: '/', title: '首页' }]
+  if (route.meta?.title && route.path !== '/') crumbs.push({ path: route.path, title: route.meta.title })
+  return crumbs
+})
 
 const menus = [
   { path: '/', label: '工作台', icon: HomeFilled },
@@ -158,12 +168,15 @@ onMounted(() => {
 <template>
   <el-container style="height: 100vh">
     <!-- Desktop sidebar -->
-    <el-aside v-if="!isMobile" width="200px" style="background: var(--brand-sidebar-bg)">
-      <div style="display: flex; justify-content: center; padding: 18px 16px">
-        <BrandLogo :height="30" />
+    <el-aside v-if="!isMobile" :width="isCollapse ? '64px' : '200px'" style="background: var(--brand-sidebar-bg); transition: width 0.2s">
+      <div style="display: flex; justify-content: center; padding: 18px 12px; overflow: hidden">
+        <BrandLogo v-if="!isCollapse" :height="30" />
+        <el-icon v-else :size="26" color="#fff" style="margin: 2px 0"><Menu /></el-icon>
       </div>
       <el-menu
         :default-active="$route.path"
+        :collapse="isCollapse"
+        :collapse-transition="false"
         background-color="var(--brand-sidebar-bg)"
         text-color="#ffffffa6"
         active-text-color="#fff"
@@ -178,14 +191,25 @@ onMounted(() => {
 
     <el-container>
       <!-- Header -->
-      <el-header :style="isMobile ? 'display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--el-border-color-light);background:var(--el-bg-color)' : 'display:flex;align-items:center;justify-content:flex-end;gap:16px;border-bottom:1px solid var(--el-border-color-light);background:var(--el-bg-color)'">
-        <!-- Mobile: hamburger -->
-        <el-button v-if="isMobile" text @click="showMobileNav = true" style="padding: 4px">
-          <el-icon :size="20"><Fold /></el-icon>
-        </el-button>
-        <span v-if="isMobile" style="font-weight: bold; font-size: 15px">通信项目管理</span>
-
-        <div style="display: flex; align-items: center; gap: 12px">
+      <el-header class="app-header">
+        <div class="header-left">
+          <el-button v-if="isMobile" text @click="showMobileNav = true" style="padding: 4px">
+            <el-icon :size="20"><Fold /></el-icon>
+          </el-button>
+          <el-button v-else text class="collapse-btn" :title="isCollapse ? '展开菜单' : '收起菜单'" @click="isCollapse = !isCollapse">
+            <el-icon :size="18"><component :is="isCollapse ? Expand : Fold" /></el-icon>
+          </el-button>
+          <el-breadcrumb v-if="!isMobile" separator="/">
+            <el-breadcrumb-item v-for="b in breadcrumbs" :key="b.path" :to="b.path === route.path ? undefined : { path: b.path }">
+              {{ b.title }}
+            </el-breadcrumb-item>
+          </el-breadcrumb>
+          <span v-if="isMobile" style="font-weight: 600; font-size: 15px">通信项目管理</span>
+        </div>
+        <div v-if="!isMobile" class="header-search">
+          <GlobalSearch />
+        </div>
+        <div class="header-right">
           <el-badge :value="unreadCount" :hidden="!unreadCount" :max="99">
             <el-button circle @click="openNotifications" title="消息通知">
               <el-icon><Bell /></el-icon>
@@ -320,6 +344,36 @@ onMounted(() => {
   color: var(--text-secondary);
   font-size: 12px;
   padding: var(--sp-6) 0 var(--sp-2);
+}
+.app-header {
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 20px;
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.collapse-btn {
+  padding: 4px;
+  color: var(--el-text-color-regular);
+}
+.header-search {
+  flex: 0 1 360px;
+  display: flex;
+  align-items: center;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .mobile-bottom-nav {
   position: fixed;
