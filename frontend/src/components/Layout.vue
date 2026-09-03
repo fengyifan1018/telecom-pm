@@ -14,6 +14,14 @@ import {
 import { getNotifications, getUnreadCount, markNotificationRead, markAllRead } from '../api/tasks'
 import http from '../api/index'
 import BrandLogo from './BrandLogo.vue'
+import { NOTIF_META } from '../utils/constants'
+
+// constants 中存图标名，此处映射为组件
+const NOTIF_ICONS = { Avatar, RefreshRight, Warning, AlarmClock, WarnTriangleFilled, Document, CircleCheck, CircleClose, CircleCheckFilled, Folder, Promotion, ChatDotRound, Bell }
+function notifMeta(type) {
+  const meta = NOTIF_META[type] || { color: 'var(--el-text-color-secondary)', icon: 'Bell' }
+  return { ...meta, icon: NOTIF_ICONS[meta.icon] || Bell }
+}
 import GlobalSearch from './GlobalSearch.vue'
 import { formatDateTime } from '../utils/format'
 
@@ -54,24 +62,6 @@ const pwdForm = ref({ old_password: '', new_password: '', confirm_password: '' }
 const pwdLoading = ref(false)
 const isAdmin = computed(() => auth.user?.role === 'admin')
 const can = (key) => auth.hasPermission(key)
-
-const NOTIF_META = {
-  task_assigned: { color: 'var(--el-color-primary)', icon: Avatar },
-  task_status: { color: 'var(--el-color-primary)', icon: RefreshRight },
-  overdue: { color: 'var(--el-color-danger)', icon: Warning },
-  due_soon: { color: 'var(--el-color-warning)', icon: AlarmClock },
-  escalation: { color: 'var(--el-color-danger)', icon: WarnTriangleFilled },
-  cr_submitted: { color: 'var(--el-color-primary)', icon: Document },
-  cr_approved: { color: 'var(--el-color-success)', icon: CircleCheck },
-  cr_rejected: { color: 'var(--el-color-danger)', icon: CircleClose },
-  project_completed: { color: 'var(--el-color-success)', icon: CircleCheckFilled },
-  project_assigned: { color: 'var(--el-color-primary)', icon: Folder },
-  project_initiated: { color: 'var(--el-color-primary)', icon: Promotion },
-  comment_mention: { color: 'var(--el-text-color-secondary)', icon: ChatDotRound },
-}
-function notifMeta(type) {
-  return NOTIF_META[type] || { color: 'var(--el-text-color-secondary)', icon: Bell }
-}
 
 const groupedNotifications = computed(() => {
   const todayStr = new Date().toISOString().slice(0, 10)

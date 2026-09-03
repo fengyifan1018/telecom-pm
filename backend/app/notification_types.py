@@ -1,0 +1,15 @@
+"""通知类型常量：后端发通知与前端 NOTIF_META 的共同契约。"""
+TASK_ASSIGNED = "task_assigned"
+TASK_STATUS = "task_status"
+OVERDUE = "overdue"
+DUE_SOON = "due_soon"
+ESCALATION = "escalation"
+CR_SUBMITTED = "cr_submitted"
+CR_APPROVED = "cr_approved"
+CR_REJECTED = "cr_rejected"
+PROJECT_COMPLETED = "project_completed"
+PROJECT_ASSIGNED = "project_assigned"
+PROJECT_INITIATED = "project_initiated"
+MENTION = "mention"
+
+ALL = {v for k, v in list(globals().items()) if k.isupper()}

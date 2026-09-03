@@ -81,3 +81,19 @@ export const PRIORITY_OPTIONS = [
   { value: 1, label: '最高' }, { value: 2, label: '高' }, { value: 3, label: '中' },
   { value: 4, label: '低' }, { value: 5, label: '最低' },
 ]
+
+// 通知类型元数据（与后端 app/notification_types.py 契约对齐，勿单边增删）
+export const NOTIF_META = {
+  task_assigned: { color: 'var(--el-color-primary)', icon: 'Avatar' },
+  task_status: { color: 'var(--el-color-primary)', icon: 'RefreshRight' },
+  overdue: { color: 'var(--el-color-danger)', icon: 'Warning' },
+  due_soon: { color: 'var(--el-color-warning)', icon: 'AlarmClock' },
+  escalation: { color: 'var(--el-color-danger)', icon: 'WarnTriangleFilled' },
+  cr_submitted: { color: 'var(--el-color-primary)', icon: 'Document' },
+  cr_approved: { color: 'var(--el-color-success)', icon: 'CircleCheck' },
+  cr_rejected: { color: 'var(--el-color-danger)', icon: 'CircleClose' },
+  project_completed: { color: 'var(--el-color-success)', icon: 'CircleCheckFilled' },
+  project_assigned: { color: 'var(--el-color-primary)', icon: 'Folder' },
+  project_initiated: { color: 'var(--el-color-primary)', icon: 'Promotion' },
+  comment_mention: { color: 'var(--el-text-color-secondary)', icon: 'ChatDotRound' },
+}
