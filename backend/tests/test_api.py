@@ -607,3 +607,55 @@ async def test_project_overview_extras(client: AsyncClient, seeded_db):
     assert len(esc) == 1
     assert esc[0]["task_no"] == t["task_no"]
     assert esc[0]["severity"] == "high"
+
+
+@pytest.mark.asyncio
+async def test_dashboard_workbench_role_scope(client: AsyncClient, seeded_db):
+    pid, tasks = await _make_inited_project(client, "工作台驾驶舱测试", pm_id=2, init_user=2)
+    t, t2 = tasks[0], tasks[1]
+
+    # net01(5) 指派 t；造两个升级（t 上一个、t2 上一个）；t2 造成超期
+    resp = await client.put(f"/api/tasks/{t['id']}/assign", json={"assignee_id": 5}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 200
+    resp = await client.post(f"/api/tasks/{t['id']}/escalations", json={
+        "severity": "high", "description": "到货延迟"}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 201
+    resp = await client.post(f"/api/tasks/{t2['id']}/escalations", json={
+        "severity": "medium", "description": "测试未开始风险"}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 201
+    from datetime import date, timedelta
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    resp = await client.put(f"/api/tasks/{t2['id']}", json={"planned_end": yesterday}, headers=headers if False else {"X-User-Id": "2"})
+    assert resp.status_code == 200
+
+    # 提交 t 产生一条流转记录（供动态校验）
+    resp = await client.put(f"/api/tasks/{t['id']}/submit", json={}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 200
+
+    # ── pm01(id=2)：scope=all 全局口径（PM 属全局角色，口径=自己项目的任务）──
+    resp = await client.get("/api/dashboard/workbench?scope=all", headers={"X-User-Id": "2"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["scope"] == "all"
+    assert body["stats"]["task_total"] == 26
+    assert body["stats"]["project_active"] == 1
+    assert body["project_health"]["at_risk"] == 1
+    risk_task_ids = {r["task_id"] for r in body["risks"]}
+    assert {t["id"], t2["id"]} <= risk_task_ids
+    assert len(body["top_projects"]) == 1
+    assert any(d["task_id"] == t["id"] for d in body["due_soon"])
+    assert len(body["activity"]) >= 1
+
+    # ── 工程师 net01(5)：强制 mine，只看指派给自己的任务 ──
+    resp = await client.get("/api/dashboard/workbench?scope=all", headers={"X-User-Id": "5"})
+    body = resp.json()
+    assert body["scope"] == "mine"
+    assert body["stats"]["task_total"] == 1
+    assert all(r["task_id"] == t["id"] for r in body["risks"])
+    assert all(d["task_id"] == t["id"] for d in body["due_soon"])
+
+    # ── 销售 sales01(1)：项目范围口径，看自己项目全部 26 个任务 ──
+    resp = await client.get("/api/dashboard/workbench", headers={"X-User-Id": "1"})
+    body = resp.json()
+    assert body["scope"] == "mine"
+    assert body["stats"]["task_total"] == 26

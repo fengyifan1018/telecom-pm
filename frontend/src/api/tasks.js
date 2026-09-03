@@ -29,6 +29,7 @@ export const getTaskWatch = (id) => http.get(`/tasks/${id}/watch`)
 export const toggleTaskWatch = (id) => http.put(`/tasks/${id}/watch`)
 
 export const getDashboard = (params) => http.get('/dashboard/my-workbench', { params })
+export const getWorkbench = (params) => http.get('/dashboard/workbench', { params })
 
 export const getOverview = () => http.get('/dashboard/overview')
 
