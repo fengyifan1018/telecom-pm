@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db, get_current_user
 from app.permissions import require_roles, require_permission
 from app.models.project import Project, Customer
-from app.models.task import Task, TaskDependency, TaskTransition
+from app.models.task import Task, TaskTransition
 from app.models.escalation import TaskEscalation
 from app.models.suspension import ProjectSuspension
 from app.models.notification import Notification
@@ -334,8 +334,6 @@ async def delete_project(
     task_ids = [row[0] for row in result.all()]
 
     if task_ids:
-        await db.execute(delete(TaskDependency).where(TaskDependency.task_id.in_(task_ids)))
-        await db.execute(delete(TaskDependency).where(TaskDependency.depends_on_id.in_(task_ids)))
         await db.execute(delete(TaskTransition).where(TaskTransition.task_id.in_(task_ids)))
         await db.execute(delete(Comment).where(Comment.task_id.in_(task_ids)))
         await db.execute(delete(Attachment).where(Attachment.task_id.in_(task_ids)))

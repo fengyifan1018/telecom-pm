@@ -38,15 +38,6 @@ class Task(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn, onupdate=now_cn)
 
 
-class TaskDependency(Base):
-    __tablename__ = "task_dependencies"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"), index=True)
-    depends_on_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"))
-    dependency_type: Mapped[str] = mapped_column(String(20), default="finish_to_start")
-
-
 class TaskRelation(Base):
     """任务间业务关系：precedes（前置，日期联动的依据）/ blocks（阻塞，流转卡点）。
 
