@@ -6,6 +6,7 @@ import { getProject, initProject, updateProject, suspendProject, resumeProject, 
 import { listTasks, listUsers, assignTask } from '../api/tasks'
 import { STATUS_MAP, PRODUCT_TYPE_MAP, PHASE_MAP, PHASE_ORDER_BY_PRODUCT, PHASE_ORDER } from '../utils/constants'
 import PhaseProgress from '../components/PhaseProgress.vue'
+import { Tickets, CircleCheck, Clock, AlarmClock } from '@element-plus/icons-vue'
 import TaskDrawer from '../components/TaskDrawer.vue'
 import GanttChart from '../components/GanttChart.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -81,11 +82,39 @@ const recentTasks = computed(() =>
     .slice(0, 5)
 )
 const overviewStats = computed(() => [
-  { label: '任务总数', value: tasks.value.length, color: 'var(--el-color-primary)' },
-  { label: '已完成', value: doneCount.value, color: 'var(--el-color-success)' },
-  { label: '进行中', value: activeCount.value, color: 'var(--el-color-warning)' },
-  { label: '已延期', value: overdueTasks.value.length, color: 'var(--el-color-danger)' },
+  { label: '任务总数', value: tasks.value.length, color: 'var(--el-color-primary)', icon: Tickets },
+  { label: '已完成', value: doneCount.value, color: 'var(--el-color-success)', icon: CircleCheck },
+  { label: '进行中', value: activeCount.value, color: 'var(--el-color-warning)', icon: Clock },
+  { label: '已延期', value: overdueTasks.value.length, color: 'var(--el-color-danger)', icon: AlarmClock },
 ])
+
+// 项目阶段竖排看板：全部必要任务完成=已完成，任一进行=进行中
+const phaseBoard = computed(() => {
+  const order = PHASE_ORDER_BY_PRODUCT[project.value?.product_type] || []
+  return order.map((key) => {
+    const ts = tasks.value.filter(t => t.phase === key)
+    const required = ts.filter(t => t.is_required)
+    const base = required.length ? required : ts
+    const done = ts.length > 0 && base.every(t => t.status === 'done')
+    const active = !done && ts.some(t => ['active', 'review'].includes(t.status))
+    const state = done ? 'done' : active ? 'active' : 'pending'
+    const statusText = done ? '已完成' : active ? '进行中' : '未开始'
+    const color = done ? 'var(--el-color-success)' : active ? 'var(--el-color-primary)' : 'var(--el-text-color-placeholder)'
+    return { key, name: PHASE_MAP[key] || key, state, statusText, color }
+  })
+})
+
+// 健康度评分：100 - 超期任务/升级各扣 10（封顶）/ 延期扣 15
+const healthScore = computed(() => {
+  let score = 100
+  score -= Math.min(50, overdueTasks.value.length * 10)
+  score -= Math.min(30, openEscalations.value.length * 10)
+  if (project.value?.planned_end && project.value.planned_end < today && project.value.status === 'active') score -= 15
+  return Math.max(0, score)
+})
+const healthScoreColor = computed(() =>
+  healthScore.value >= 80 ? 'var(--el-color-success)' : healthScore.value >= 60 ? 'var(--el-color-warning)' : 'var(--el-color-danger)'
+)
 // 任务行内快捷指派（仅 PM/管理员）
 const canAssign = computed(() => ['pm', 'admin'].includes(auth.user?.role))
 async function quickAssign(row, userId) {
@@ -444,28 +473,33 @@ async function handleRejectCR() {
       <el-row :gutter="12" style="margin-bottom: 16px">
         <el-col v-for="st in overviewStats" :key="st.label" :span="6">
           <div class="ov-stat">
-            <div class="ov-stat__num num" :style="{ color: st.color }">{{ st.value }}</div>
-            <div class="ov-stat__label">{{ st.label }}</div>
+            <div class="ov-stat__icon" :style="{ background: st.color }">
+              <el-icon :size="20" color="#fff"><component :is="st.icon" /></el-icon>
+            </div>
+            <div>
+              <div class="ov-stat__num num">{{ st.value }}</div>
+              <div class="ov-stat__label">{{ st.label }}</div>
+            </div>
           </div>
         </el-col>
       </el-row>
 
-      <!-- Project Details -->
-      <el-card v-if="project.description" style="margin-bottom: 16px">
-        <template #header>项目详情</template>
-        <div style="white-space: pre-wrap; font-size: 14px; color: var(--el-text-color-primary); line-height: 1.7">{{ project.description }}</div>
-      </el-card>
-
-      <!-- Phase Progress -->
-      <el-card v-if="tasks.length > 0" style="margin-bottom: 16px">
-        <template #header>阶段进度</template>
-        <PhaseProgress :tasks="tasks" :product-type="project.product_type" />
-      </el-card>
-
       <el-row :gutter="12" style="margin-bottom: 16px">
-        <el-col :span="12">
+        <el-col :span="8">
           <el-card shadow="never" style="height: 100%">
-            <div class="section-label">风险 ({{ openEscalations.length + overdueTasks.length }})</div>
+            <div class="section-label">项目阶段</div>
+            <div v-for="ph in phaseBoard" :key="ph.key" class="ov-phase-item">
+              <span class="phase-dot" :class="'phase-dot--' + ph.state">
+                <el-icon v-if="ph.state === 'done'" :size="12" color="#fff"><CircleCheck /></el-icon>
+              </span>
+              <span class="ov-phase-name">{{ ph.name }}</span>
+              <span class="ov-phase-status" :style="{ color: ph.color }">{{ ph.statusText }}</span>
+            </div>
+          </el-card>
+        </el-col>
+        <el-col :span="8">
+          <el-card shadow="never" style="height: 100%">
+            <div class="section-label">项目风险 ({{ openEscalations.length + overdueTasks.length }})</div>
             <template v-if="openEscalations.length || overdueTasks.length">
               <div v-for="e in openEscalations" :key="e.id" class="ov-risk-item">
                 <el-tag :type="e.severity === 'critical' || e.severity === 'high' ? 'danger' : 'warning'" size="small">
@@ -483,7 +517,58 @@ async function handleRejectCR() {
             <div v-else style="color: var(--el-text-color-secondary); font-size: 13px">暂无风险项</div>
           </el-card>
         </el-col>
-        <el-col :span="12">
+        <el-col :span="8">
+          <el-card shadow="never" style="height: 100%">
+            <div class="section-label">项目健康度</div>
+            <div style="display: flex; justify-content: center; margin: 4px 0 10px">
+              <el-progress type="circle" :percentage="healthScore" :width="104" :color="healthScoreColor"
+                           :format="() => healthScore + ' 分'" />
+            </div>
+            <div class="ov-health-row"><span>进度</span><span class="num">{{ progressPct }}%</span></div>
+            <div class="ov-health-row">
+              <span>任务</span>
+              <span :style="overdueTasks.length ? 'color: var(--el-color-danger)' : 'color: var(--el-color-success)'">
+                {{ overdueTasks.length ? overdueTasks.length + ' 个延期' : '正常' }}
+              </span>
+            </div>
+            <div class="ov-health-row">
+              <span>风险</span>
+              <span :style="openEscalations.length ? 'color: var(--el-color-danger)' : 'color: var(--el-color-success)'">
+                {{ openEscalations.length ? openEscalations.length + ' 项升级' : '正常' }}
+              </span>
+            </div>
+            <div class="ov-health-row">
+              <span>计划</span>
+              <span :style="project.planned_end && project.planned_end < today && project.status === 'active' ? 'color: var(--el-color-danger)' : 'color: var(--el-color-success)'">
+                {{ project.planned_end && project.planned_end < today && project.status === 'active' ? '已延期' : '正常' }}
+              </span>
+            </div>
+            <div class="ov-health-row"><span>验收</span><span>{{ inAcceptance ? '验收中' : '未开始' }}</span></div>
+          </el-card>
+        </el-col>
+      </el-row>
+
+      <el-row :gutter="12">
+        <el-col :span="14">
+          <el-card shadow="never" style="height: 100%">
+            <div class="section-label">近期待办（按截止时间）</div>
+            <el-table :data="recentTasks" size="small" @row-click="openTask" highlight-current-row style="cursor: pointer">
+              <el-table-column prop="title" label="任务" min-width="200" show-overflow-tooltip />
+              <el-table-column prop="assignee_name" label="负责人" width="100">
+                <template #default="{ row }">{{ row.assignee_name || '—' }}</template>
+              </el-table-column>
+              <el-table-column label="截止" width="100">
+                <template #default="{ row }">{{ row.planned_end || '—' }}</template>
+              </el-table-column>
+              <el-table-column label="状态" width="86">
+                <template #default="{ row }">
+                  <el-tag :type="STATUS_MAP[row.status]?.type" size="small">{{ STATUS_MAP[row.status]?.label }}</el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
+        </el-col>
+        <el-col :span="10">
           <el-card shadow="never" style="height: 100%">
             <div class="section-label">最近动态</div>
             <div v-if="activity.length === 0" style="color: var(--el-text-color-secondary); font-size: 13px">暂无动态</div>
@@ -496,24 +581,12 @@ async function handleRejectCR() {
         </el-col>
       </el-row>
 
-      <el-card shadow="never">
-        <div class="section-label">近期待办（按截止时间）</div>
-        <el-table :data="recentTasks" size="small" @row-click="openTask" highlight-current-row style="cursor: pointer">
-          <el-table-column prop="title" label="任务" min-width="220" show-overflow-tooltip />
-          <el-table-column prop="assignee_name" label="负责人" width="120">
-            <template #default="{ row }">{{ row.assignee_name || '—' }}</template>
-          </el-table-column>
-          <el-table-column label="截止" width="110">
-            <template #default="{ row }">{{ row.planned_end || '—' }}</template>
-          </el-table-column>
-          <el-table-column label="状态" width="90">
-            <template #default="{ row }">
-              <el-tag :type="STATUS_MAP[row.status]?.type" size="small">{{ STATUS_MAP[row.status]?.label }}</el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
+      <el-card v-if="project.description" shadow="never" style="margin-top: 16px">
+        <div class="section-label">项目描述</div>
+        <div class="task-description">{{ project.description }}</div>
       </el-card>
         </el-tab-pane>
+
           <el-tab-pane label="任务列表" name="list">
             <div v-for="group in groupedTasks" :key="group.phase" style="margin-bottom: 20px">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px">
@@ -687,3 +760,62 @@ async function handleRejectCR() {
     </el-dialog>
   </div>
 </template>
+
+<style scoped>
+.ov-stat {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-light);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ov-stat__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ov-stat__num { font-size: 24px; font-weight: bold; font-variant-numeric: tabular-nums; }
+.ov-stat__label { font-size: 13px; color: var(--el-text-color-secondary); }
+.ov-phase-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  font-size: 13px;
+}
+.ov-phase-name { flex: 1; color: var(--el-text-color-primary); }
+.ov-phase-status { font-size: 12px; }
+.phase-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 2px solid var(--el-border-color);
+  background: var(--el-bg-color);
+}
+.phase-dot--done { background: var(--el-color-success); border-color: var(--el-color-success); }
+.phase-dot--active { border-color: var(--el-color-primary); }
+.phase-dot--active::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--el-color-primary);
+}
+.ov-health-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+</style>
