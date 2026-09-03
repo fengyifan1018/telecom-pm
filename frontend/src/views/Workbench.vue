@@ -253,6 +253,30 @@ const severityLabel = (s) => ({ low: '低', medium: '中', high: '高', critical
 </template>
 
 <style scoped>
+.ov-stat {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-light);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ov-stat__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.section-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-title);
+  margin: 0 0 10px;
+}
 .wb-greeting {
   display: flex;
   justify-content: space-between;
