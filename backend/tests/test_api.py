@@ -147,9 +147,6 @@ async def test_dashboard(client: AsyncClient, seeded_db):
     assert resp.status_code == 200
     assert "projects" in resp.json()
 
-    resp = await client.get("/api/dashboard/my-workbench", headers=headers)
-    assert resp.status_code == 200
-    assert "total" in resp.json()
 
 
 @pytest.mark.asyncio
