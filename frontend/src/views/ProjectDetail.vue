@@ -552,7 +552,7 @@ async function handleRejectCR() {
         <el-col :span="14">
           <el-card shadow="never" style="height: 100%">
             <div class="section-label">近期待办（按截止时间）</div>
-            <el-table :data="recentTasks" size="small" @row-click="openTask" highlight-current-row style="cursor: pointer">
+            <el-table :data="recentTasks" @row-click="openTask" highlight-current-row style="cursor: pointer">
               <el-table-column prop="title" label="任务" min-width="200" show-overflow-tooltip />
               <el-table-column prop="assignee_name" label="负责人" width="100">
                 <template #default="{ row }">{{ row.assignee_name || '—' }}</template>
@@ -810,6 +810,35 @@ async function handleRejectCR() {
   height: 8px;
   border-radius: 50%;
   background: var(--el-color-primary);
+}
+.ov-risk-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 13px;
+}
+.ov-risk-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--el-text-color-primary);
+}
+.ov-risk-meta {
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.ov-activity-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  font-size: 13px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 .ov-health-row {
   display: flex;
