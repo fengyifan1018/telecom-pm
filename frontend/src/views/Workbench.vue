@@ -216,9 +216,13 @@ const severityLabel = (s) => ({ low: '低', medium: '中', high: '高', critical
                 <el-progress :percentage="p.progress_pct" :stroke-width="6" :show-text="false" style="width: 90px" />
                 <span class="num" style="font-size: 12px; color: var(--el-text-color-secondary)">{{ p.progress_pct }}%</span>
               </div>
-              <el-tag v-if="p.is_delayed" type="danger" size="small" effect="plain">已延期</el-tag>
-              <span v-if="p.planned_end" class="num" style="font-size: 12px; color: var(--el-text-color-placeholder)">{{ p.planned_end }}</span>
-              <span v-else style="font-size: 12px; color: var(--el-text-color-placeholder)">未排期</span>
+              <span class="top-project-slot">
+                <el-tag v-if="p.is_delayed" type="danger" size="small" effect="plain">已延期</el-tag>
+              </span>
+              <span class="top-project-slot due">
+                <span v-if="p.planned_end" class="num">{{ p.planned_end }}</span>
+                <span v-else class="unscheduled">未排期</span>
+              </span>
             </div>
           </template>
           <div v-else style="color: var(--el-text-color-secondary); font-size: 13px">暂无进行中的项目</div>
@@ -334,4 +338,27 @@ const severityLabel = (s) => ({ low: '低', medium: '中', high: '高', critical
 .due-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--el-text-color-primary); }
 .due-project { font-size: 12px; color: var(--el-text-color-placeholder); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .due-date { color: var(--el-text-color-secondary); }
+</style>
+
+<style scoped>
+.top-project-progress {
+  width: 132px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.top-project-slot {
+  width: 58px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+}
+.top-project-slot.due {
+  width: 78px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+.unscheduled { font-size: 12px; color: var(--el-text-color-placeholder); }
 </style>
