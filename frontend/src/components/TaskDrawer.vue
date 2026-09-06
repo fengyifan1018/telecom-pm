@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
 import { ArrowLeft, ArrowRight, Star, StarFilled } from '@element-plus/icons-vue'
 import { startTask, submitTask, approveTask, rejectTask, assignTask, updateTask, getComments, addComment, getTransitions, listUsers, listAttachments, uploadAttachment, deleteAttachment, getAttachmentDownloadUrl, listEscalations, createEscalation, resolveEscalation, listTasks, getTaskRelations, addTaskRelation, deleteTaskRelation, getTaskWatch, toggleTaskWatch } from '../api/tasks'
 import http from '../api/index'
@@ -61,6 +61,58 @@ const uploadLoading = ref(false)
 const escalations = ref([])
 const showEscalationForm = ref(false)
 const escalationForm = ref({ severity: 'medium', description: '' })
+
+// 评论 @ 提及：输入 @ 弹出候选（过滤↑↓Enter/点击插入 @显示名前缀，与后端匹配规则一致）
+const commentInputRef = ref(null)
+const mention = ref({ open: false, query: '', start: -1, index: 0 })
+const mentionCandidates = computed(() => {
+  const q = mention.value.query.toLowerCase()
+  return users.value
+    .filter(u => u.id !== auth.user?.id)
+    .filter(u => {
+      if (!q) return true
+      const short = (u.display_name || '').split('(')[0]
+      return u.username.toLowerCase().includes(q)
+        || (u.display_name || '').toLowerCase().includes(q)
+        || short.toLowerCase().includes(q)
+    })
+    .slice(0, 6)
+})
+function commentTextareaEl() {
+  const root = commentInputRef.value?.$el
+  return root?.querySelector?.('textarea') || (root?.tagName === 'TEXTAREA' ? root : null)
+}
+function onCommentInput() {
+  const el = commentTextareaEl()
+  const pos = el?.selectionStart ?? newComment.value.length
+  const m = newComment.value.slice(0, pos).match(/@([^\s@]*)$/)
+  if (m) {
+    mention.value = { open: true, query: m[1], start: pos - m[1].length - 1, index: 0 }
+  } else {
+    mention.value.open = false
+  }
+}
+function closeMention() { mention.value.open = false }
+function pickMention(u) {
+  const el = commentTextareaEl()
+  const pos = el?.selectionStart ?? newComment.value.length
+  const short = (u.display_name || '').split('(')[0].trim()
+  const insert = '@' + short + ' '
+  newComment.value = newComment.value.slice(0, mention.value.start) + insert + newComment.value.slice(pos)
+  mention.value.open = false
+  nextTick(() => {
+    el?.focus()
+    const caret = mention.value.start + insert.length
+    el?.setSelectionRange(caret, caret)
+  })
+}
+function onCommentKeydown(e) {
+  if (!mention.value.open || !mentionCandidates.value.length) return
+  if (e.key === 'ArrowDown') { e.preventDefault(); mention.value.index = (mention.value.index + 1) % mentionCandidates.value.length }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); mention.value.index = (mention.value.index - 1 + mentionCandidates.value.length) % mentionCandidates.value.length }
+  else if (e.key === 'Enter' && !e.ctrlKey) { e.preventDefault(); pickMention(mentionCandidates.value[mention.value.index]) }
+  else if (e.key === 'Escape') { mention.value.open = false }
+}
 
 // 任务关注（watcher）
 const watchInfo = ref({ watching: false, count: 0, watchers: [] })
@@ -577,9 +629,19 @@ function close() {
             </template>
             <EmptyState v-if="activityFeed.length === 0" text="暂无动态" :size="36" />
           </div>
-          <div style="display: flex; gap: 8px">
-            <el-input v-model="newComment" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }"
-                      placeholder="输入评论，支持 @用户名 提及；Ctrl+Enter 发送" @keydown.enter.ctrl="handleComment" />
+          <div class="comment-box">
+            <div v-if="mention.open && mentionCandidates.length" class="mention-pop">
+              <div v-for="(u, i) in mentionCandidates" :key="u.id" class="mention-item"
+                   :class="{ 'is-active': i === mention.index }"
+                   @mousedown.prevent="pickMention(u)" @mousemove="mention.index = i">
+                <span class="mention-name">{{ (u.display_name || '').split('(')[0] }}</span>
+                <span class="mention-sub">{{ ROLE_MAP[u.role] || u.role }} · {{ u.username }}</span>
+              </div>
+              <div class="mention-tip">↑↓ 选择 · Enter 插入 · Esc 关闭</div>
+            </div>
+            <el-input ref="commentInputRef" v-model="newComment" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }"
+                      placeholder="输入评论，@ 可选择提醒对象；Ctrl+Enter 发送"
+                      @input="onCommentInput" @keydown="onCommentKeydown" @keydown.enter.ctrl="handleComment" @blur="closeMention" />
             <el-button type="primary" @click="handleComment">发送</el-button>
           </div>
         </el-tab-pane>
@@ -727,6 +789,46 @@ function close() {
   padding: 8px 10px;
   background: var(--el-fill-color-light);
   border-radius: var(--radius-sm);
+}
+.comment-box {
+  display: flex;
+  gap: 8px;
+  position: relative;
+  align-items: flex-start;
+}
+.mention-pop {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  min-width: 240px;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+  padding: 4px;
+}
+.mention-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+}
+.mention-item.is-active {
+  background: var(--el-color-primary-light-9);
+}
+.mention-name { color: var(--el-text-color-primary); font-weight: 500; }
+.mention-sub { color: var(--el-text-color-placeholder); font-size: 12px; }
+.mention-tip {
+  font-size: 11px;
+  color: var(--el-text-color-placeholder);
+  padding: 4px 10px 2px;
+  border-top: 1px solid var(--el-border-color-lighter);
+  margin-top: 2px;
 }
 .drawer-title {
   font-size: 16px;
