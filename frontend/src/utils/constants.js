@@ -6,7 +6,8 @@ export const STATUS_MAP = {
   paused: { label: '已暂停', type: 'info' },
   blocked: { label: '阻塞', type: 'danger' },
   cancelled: { label: '已取消', type: 'info' },
-  draft: { label: '草稿', type: 'info' },
+  draft: { label: '待立项', type: 'info' },
+  init_pending: { label: '立项审核中', type: 'warning' },
   completed: { label: '已完成', type: 'success' },
   suspended: { label: '已暂停', type: 'warning' },
 }
@@ -95,5 +96,7 @@ export const NOTIF_META = {
   project_completed: { color: 'var(--el-color-success)', icon: 'CircleCheckFilled' },
   project_assigned: { color: 'var(--el-color-primary)', icon: 'Folder' },
   project_initiated: { color: 'var(--el-color-primary)', icon: 'Promotion' },
+  project_init_request: { color: 'var(--el-color-warning)', icon: 'Document' },
+  project_init_rejected: { color: 'var(--el-color-danger)', icon: 'CircleClose' },
   comment_mention: { color: 'var(--el-text-color-secondary)', icon: 'ChatDotRound' },
 }

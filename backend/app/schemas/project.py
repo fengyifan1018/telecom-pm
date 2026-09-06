@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
@@ -68,8 +68,15 @@ class ProjectResponse(BaseModel):
     description: Optional[str]
     created_at: datetime
     updated_at: datetime
+    init_submitted_by: Optional[int] = None
+    init_reject_reason: Optional[str] = None
 
     model_config = {"from_attributes": True}
+
+
+class InitApprovalRequest(BaseModel):
+    action: Literal["approve", "reject"]
+    reason: Optional[str] = None
 
 
 class ProjectHealthResponse(ProjectResponse):

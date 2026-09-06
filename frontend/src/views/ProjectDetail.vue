@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { getProject, initProject, updateProject, suspendProject, resumeProject, deleteProject, getProjectActivity, getProjectOpenEscalations } from '../api/projects'
+import { getProject, initProject, submitInitiation, initApproval, updateProject, suspendProject, resumeProject, deleteProject, getProjectActivity, getProjectOpenEscalations } from '../api/projects'
 import { listTasks, listUsers, assignTask } from '../api/tasks'
 import { STATUS_MAP, PRODUCT_TYPE_MAP, PHASE_MAP, PHASE_ORDER_BY_PRODUCT, PHASE_ORDER } from '../utils/constants'
 import PhaseProgress from '../components/PhaseProgress.vue'
@@ -67,6 +67,7 @@ const inAcceptance = computed(() => {
   return tasks.value.some(t => t.phase === acc && ['active', 'review', 'done'].includes(t.status))
 })
 const health = computed(() => {
+  if (project.value?.status === 'init_pending') return { label: '立项审核中', type: 'warning' }
   if (inAcceptance.value && project.value?.status === 'active') return { label: '验收中', type: 'primary' }
   if (openEscalations.value.length || overdueTasks.value.length) return { label: '有风险', type: 'danger' }
   if (project.value?.planned_end && project.value.planned_end < today && !['completed', 'cancelled'].includes(project.value.status)) {
@@ -81,6 +82,46 @@ const recentTasks = computed(() =>
     .sort((x, y) => (x.planned_end || '9999') < (y.planned_end || '9999') ? -1 : 1)
     .slice(0, 5)
 )
+// 立项：管理层（有审核权限或非销售的 initiate 持有者）可直接立项；销售走立项审核
+const canDirectInit = computed(() => {
+  if (!project.value || project.value.status !== 'draft') return false
+  if (auth.hasPermission('project.init_approve')) return true
+  return !isSales.value && auth.hasPermission('project.initiate')
+})
+async function handleSubmitInitiation() {
+  try {
+    const res = await submitInitiation(project.value.id)
+    project.value = res.data
+    ElMessage.success('立项申请已提交，等待审核')
+  } catch (e) {
+    // 错误提示由全局拦截器统一处理
+  }
+}
+async function handleInitApproval(action) {
+  if (action === 'reject') {
+    try {
+      const { value } = await ElMessageBox.prompt('请填写驳回原因', '驳回立项申请', {
+        confirmButtonText: '确认驳回', cancelButtonText: '取消',
+        inputValidator: (v) => !!v || '请填写驳回原因',
+      })
+      const res = await initApproval(project.value.id, { action: 'reject', reason: value })
+      project.value = res.data
+      ElMessage.success('已驳回，项目退回待立项')
+    } catch (e) {
+      // 取消或接口错误由拦截器提示
+    }
+    return
+  }
+  try {
+    const res = await initApproval(project.value.id, { action: 'approve' })
+    ElMessage.success('审核通过，已完成立项')
+    project.value = res.data
+    await fetchData()
+  } catch (e) {
+    // 错误提示由全局拦截器统一处理
+  }
+}
+
 function handleMoreCommand(cmd) {
   if (cmd === 'edit') openEdit()
   else if (cmd === 'suspend') handleSuspend()
@@ -439,9 +480,18 @@ async function handleRejectCR() {
               <el-progress :percentage="progressPct" :stroke-width="10" :show-text="false" />
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
-              <el-button v-if="project.status === 'draft' && !isSales" type="primary" @click="handleInit">
-                立项（生成任务）
-              </el-button>
+              <template v-if="project.status === 'draft'">
+                <el-button v-if="canDirectInit" type="primary" @click="handleInit">
+                  立项（生成任务）
+                </el-button>
+                <el-button v-else-if="auth.hasPermission('project.initiate')" type="primary" @click="handleSubmitInitiation">
+                  提交立项审核
+                </el-button>
+              </template>
+              <template v-if="project.status === 'init_pending' && auth.hasPermission('project.init_approve')">
+                <el-button type="success" @click="handleInitApproval('approve')">通过并立项</el-button>
+                <el-button type="warning" plain @click="handleInitReject">驳回</el-button>
+              </template>
               <el-dropdown @command="handleMoreCommand">
                 <el-button>
                   更多操作
@@ -467,7 +517,11 @@ async function handleRejectCR() {
         <div v-if="activeTab === 'list'" style="display: flex; justify-content: flex-end; margin-bottom: 8px">
           <el-button size="small" @click="exportTasks">导出 Excel</el-button>
         </div>
-        <el-tabs v-model="activeTab">
+        <el-alert v-if="project.status === 'draft' && project.init_reject_reason" type="warning"
+                :closable="false" show-icon style="margin-bottom: 16px"
+                :title="`立项申请被驳回：${project.init_reject_reason}（可修改后重新提交）`" />
+
+      <el-tabs v-model="activeTab">
         <el-tab-pane label="概览" name="overview">
       <!-- 概览统计 -->
       <el-row :gutter="12" style="margin-bottom: 16px">

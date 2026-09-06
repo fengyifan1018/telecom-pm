@@ -12,6 +12,8 @@ MIGRATIONS = [
     ("tasks", "version",        "INTEGER NOT NULL DEFAULT 1"),
     ("tasks", "auto_schedule",  "BOOLEAN NOT NULL DEFAULT 1"),
     ("tasks", "progress",       "INTEGER NOT NULL DEFAULT 0"),
+    ("projects", "init_submitted_by", "INTEGER"),
+    ("projects", "init_reject_reason", "TEXT"),
 ]
 
 

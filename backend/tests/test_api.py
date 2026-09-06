@@ -656,3 +656,69 @@ async def test_dashboard_workbench_role_scope(client: AsyncClient, seeded_db):
     body = resp.json()
     assert body["scope"] == "mine"
     assert body["stats"]["task_total"] == 26
+
+
+@pytest.mark.asyncio
+async def test_project_initiation_approval(client: AsyncClient, seeded_db):
+    # 销售(1)创建项目 → 待立项
+    resp = await client.post("/api/projects", json={
+        "name": "立项审核测试", "customer_id": 1, "product_type": "dia",
+    }, headers={"X-User-Id": "1"})
+    assert resp.status_code == 201
+    pid = resp.json()["id"]
+
+    # 销售提交立项申请 → 立项审核中
+    resp = await client.post(f"/api/projects/{pid}/submit-initiation", headers={"X-User-Id": "1"})
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "init_pending"
+    # 重复提交 → 400
+    resp = await client.post(f"/api/projects/{pid}/submit-initiation", headers={"X-User-Id": "1"})
+    assert resp.status_code == 400
+
+    # 无审核权限（net01/pm01）→ 403
+    for uid in ("5", "2"):
+        resp = await client.post(f"/api/projects/{pid}/init-approval", json={
+            "action": "approve"}, headers={"X-User-Id": uid})
+        assert resp.status_code == 403
+
+    # operations(3) 审核通过 → active + 任务树生成
+    resp = await client.post(f"/api/projects/{pid}/init-approval", json={
+        "action": "approve"}, headers={"X-User-Id": "3"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "active"
+    assert len(body["tasks"]) == 26
+    # 任务里不含审核信息（已清空）
+    assert body["init_reject_reason"] is None
+
+    # ── 驳回流：第二个项目 ──
+    resp = await client.post("/api/projects", json={
+        "name": "立项驳回测试", "customer_id": 1, "product_type": "dia",
+    }, headers={"X-User-Id": "1"})
+    pid2 = resp.json()["id"]
+    resp = await client.post(f"/api/projects/{pid2}/submit-initiation", headers={"X-User-Id": "1"})
+    assert resp.status_code == 200
+
+    # operations 驳回（缺原因 → 400；带原因 → 回待立项并记录）
+    resp = await client.post(f"/api/projects/{pid2}/init-approval", json={
+        "action": "reject"}, headers={"X-User-Id": "3"})
+    assert resp.status_code == 400
+    resp = await client.post(f"/api/projects/{pid2}/init-approval", json={
+        "action": "reject", "reason": "客户意向不明确"}, headers={"X-User-Id": "3"})
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "draft"
+    assert resp.json()["init_reject_reason"] == "客户意向不明确"
+
+    # 驳回后可重新提交
+    resp = await client.post(f"/api/projects/{pid2}/submit-initiation", headers={"X-User-Id": "1"})
+    assert resp.status_code == 200
+
+    # 提交人收到驳回通知
+    resp = await client.get("/api/notifications", headers={"X-User-Id": "1"})
+    data = resp.json()
+    items = data if isinstance(data, list) else data.get("items", [])
+    assert any(n["type"] == "project_init_rejected" and n.get("related_project_id") == pid2 for n in items)
+
+    # 列表筛选：立项审核中可筛出
+    resp = await client.get("/api/projects?status=init_pending", headers={"X-User-Id": "1"})
+    assert pid2 in [p["id"] for p in resp.json()["items"]]

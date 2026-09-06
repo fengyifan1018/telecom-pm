@@ -9,6 +9,7 @@ from app.permissions import require_roles, require_permission
 from app.models.project import Project, Customer
 from app.models.task import Task, TaskTransition
 from app.models.escalation import TaskEscalation
+from app.models.role_permission import RolePermission
 from app.models.suspension import ProjectSuspension
 from app.models.notification import Notification
 from app.models.comment import Comment
@@ -16,11 +17,12 @@ from app.models.attachment import Attachment
 from app.models.escalation import TaskEscalation
 from app.models.user import User
 from app.schemas.project import (
-    ProjectCreate, ProjectUpdate, ProjectResponse, ProjectHealthResponse,
+    ProjectCreate, ProjectUpdate, ProjectResponse, ProjectHealthResponse, InitApprovalRequest,
     CustomerCreate, CustomerUpdate, CustomerResponse,
 )
 from app.schemas.task import TaskResponse
 from app.services import project_service, template_service
+from app.services.notification_service import notify as _notify
 from app.services.notification_service import notify
 from app.services.audit_service import log_action
 from app.timeutil import now_cn
@@ -291,6 +293,88 @@ async def project_open_escalations(
     ]
 
 
+@router.post("/{project_id}/submit-initiation", response_model=ProjectResponse)
+async def submit_initiation(
+    project_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("project.initiate")),
+):
+    """提交立项申请：draft → init_pending，通知立项审核人。"""
+    project = await db.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project.status != "draft":
+        raise HTTPException(status_code=400, detail="仅待立项状态可提交立项申请")
+
+    project.status = "init_pending"
+    project.init_submitted_by = current_user.id
+    project.init_reject_reason = None
+
+    approvers = (await db.execute(
+        select(User)
+        .join(RolePermission, RolePermission.role == User.role)
+        .where(RolePermission.permission_key == "project.init_approve", User.is_active == True)
+    )).scalars().all()
+    for u in approvers:
+        if u.id != current_user.id:
+            await _notify(db, u.id, "project_init_request",
+                          f"项目待立项审核: {project.name}", related_project_id=project.id)
+    await log_action(db, current_user.id, current_user.display_name, "submit_initiation",
+                     "project", project.id, project.name)
+    await db.commit()
+    await db.refresh(project)
+    return project
+
+
+@router.post("/{project_id}/init-approval")
+async def init_approval(
+    project_id: int,
+    data: InitApprovalRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("project.init_approve")),
+):
+    """立项审核：approve 生成任务树并激活；reject 退回待立项并记录原因。"""
+    project = await db.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project.status != "init_pending":
+        raise HTTPException(status_code=400, detail="该项目不在立项审核中")
+
+    if data.action == "reject":
+        if not data.reason:
+            raise HTTPException(status_code=400, detail="驳回必须填写原因")
+        project.status = "draft"
+        project.init_reject_reason = data.reason
+        if project.init_submitted_by:
+            await _notify(db, project.init_submitted_by, "project_init_rejected",
+                          f"立项申请被驳回: {project.name}", content=data.reason,
+                          related_project_id=project.id)
+        await log_action(db, current_user.id, current_user.display_name, "init_reject",
+                         "project", project.id, project.name, detail={"reason": data.reason})
+        await db.commit()
+        await db.refresh(project)
+        return ProjectResponse.model_validate(project)
+
+    # approve：生成任务树并激活
+    tasks = await template_service.generate_tasks_from_template(db, project)
+    if project.sales_id and project.sales_id != current_user.id:
+        await _notify(db, project.sales_id, "project_initiated",
+                      f"项目已通过立项审核: {project.name}，共生成 {len(tasks)} 个任务",
+                      related_project_id=project.id)
+    if project.init_submitted_by and project.init_submitted_by not in (project.sales_id, current_user.id):
+        await _notify(db, project.init_submitted_by, "project_initiated",
+                      f"你提交的立项申请已通过: {project.name}", related_project_id=project.id)
+    await log_action(db, current_user.id, current_user.display_name, "init",
+                     "project", project.id, project.name,
+                     detail={"task_count": len(tasks)})
+    await db.commit()
+    for t in tasks:
+        await db.refresh(t)
+    out = ProjectResponse.model_validate(project).model_dump(mode="json")
+    out["tasks"] = [TaskResponse.model_validate(t).model_dump(mode="json") for t in tasks]
+    return out
+
+
 @router.post("/{project_id}/init", response_model=list[TaskResponse])
 async def init_project(
     project_id: int,
@@ -301,6 +385,8 @@ async def init_project(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     _assert_pm_access(project, current_user)
+    if current_user.role == "sales":
+        raise HTTPException(status_code=403, detail="销售提交的立项需经立项审核，请使用提交立项申请")
     if project.status != "draft":
         raise HTTPException(status_code=400, detail="Project already initialized")
     tasks = await template_service.generate_tasks_from_template(db, project)

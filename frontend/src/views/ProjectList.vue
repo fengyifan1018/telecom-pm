@@ -189,9 +189,11 @@ async function handleDelete(row, e) {
           <el-select v-model="filters.product_type" placeholder="产品线" clearable style="width: 140px">
             <el-option v-for="(label, key) in PRODUCT_TYPE_MAP" :key="key" :label="label" :value="key" />
           </el-select>
-          <el-select v-model="filters.status" placeholder="状态" clearable style="width: 120px">
-            <el-option label="草稿" value="draft" />
+          <el-select v-model="filters.status" placeholder="状态" clearable style="width: 130px">
+            <el-option label="待立项" value="draft" />
+            <el-option label="立项审核中" value="init_pending" />
             <el-option label="进行中" value="active" />
+            <el-option label="已暂停" value="suspended" />
             <el-option label="已完成" value="completed" />
             <el-option label="已取消" value="cancelled" />
           </el-select>

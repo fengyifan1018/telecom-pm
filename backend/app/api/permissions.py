@@ -26,7 +26,8 @@ ROLE_LABELS = {
 # Ordered permission definitions
 PERMISSION_DEFS: dict[str, dict] = {
     "project.create":    {"label": "创建项目",          "default_roles": ["sales", "pm", "admin"]},
-    "project.initiate":  {"label": "立项（生成任务）",   "default_roles": ["pm", "admin"]},
+    "project.initiate":  {"label": "提交立项申请",       "default_roles": ["sales", "pm", "admin"]},
+    "project.init_approve": {"label": "立项审核",         "default_roles": ["admin", "operations"]},
     "project.suspend":   {"label": "暂停项目",          "default_roles": ["pm", "admin"]},
     "project.resume":    {"label": "恢复项目",          "default_roles": ["pm", "admin"]},
     "project.delete":    {"label": "删除项目",          "default_roles": ["admin"]},

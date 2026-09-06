@@ -11,5 +11,7 @@ PROJECT_COMPLETED = "project_completed"
 PROJECT_ASSIGNED = "project_assigned"
 PROJECT_INITIATED = "project_initiated"
 MENTION = "mention"
+PROJECT_INIT_REQUEST = "project_init_request"
+PROJECT_INIT_REJECTED = "project_init_rejected"
 
 ALL = {v for k, v in list(globals().items()) if k.isupper()}

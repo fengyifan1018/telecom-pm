@@ -11,6 +11,8 @@ export const createProject = (data) => http.post('/projects', data)
 export const updateProject = (id, data) => http.put(`/projects/${id}`, data)
 
 export const initProject = (id) => http.post(`/projects/${id}/init`)
+export const submitInitiation = (id) => http.post(`/projects/${id}/submit-initiation`)
+export const initApproval = (id, data) => http.post(`/projects/${id}/init-approval`, data)
 
 export const listCustomers = () => http.get('/projects/customers')
 

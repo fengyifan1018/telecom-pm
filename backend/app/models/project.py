@@ -40,3 +40,6 @@ class Project(Base):
     version: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn, onupdate=now_cn)
+    # 立项审核：提交人 / 最近驳回原因
+    init_submitted_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))
+    init_reject_reason: Mapped[Optional[str]] = mapped_column(Text)
