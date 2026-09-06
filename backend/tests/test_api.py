@@ -415,13 +415,17 @@ async def test_schedule_propagation(client: AsyncClient, seeded_db):
     a, b, c = phase2[0], phase2[1], phase2[2]
     orig = {t["id"]: (t["planned_start"], t["planned_end"]) for t in (a, b, c)}
 
-    # 建链：a precedes b precedes c
+    # 建链：a precedes b precedes c（同阶段并行任务建链时会自动顺推消解冲突）
     resp = await client.post(f"/api/tasks/{b['id']}/relations", json={
         "relation_type": "precedes", "related_task_id": a["id"]}, headers=headers)
     assert resp.status_code == 201
     resp = await client.post(f"/api/tasks/{c['id']}/relations", json={
         "relation_type": "precedes", "related_task_id": b["id"]}, headers=headers)
     assert resp.status_code == 201
+    # 建链后重取基线（b/c 可能已被自动顺推过）
+    for t in (a, b, c):
+        cur = (await client.get(f"/api/tasks/{t['id']}", headers=headers)).json()
+        orig[t["id"]] = (cur["planned_start"], cur["planned_end"])
 
     # 改 a 的排期整体 +2 → b/c 自动顺延 2 天
     new_start = (date.fromisoformat(a["planned_start"]) + timedelta(days=2)).isoformat()
@@ -767,3 +771,52 @@ async def test_batch_update_tasks(client: AsyncClient, seeded_db):
     body = resp.json()
     assert body["updated"] == 1
     assert body["failed"] and body["failed"][0]["task_id"] == 99999
+
+
+@pytest.mark.asyncio
+async def test_precedes_relation_reschedules_conflict(client: AsyncClient, seeded_db):
+    from datetime import date, timedelta
+
+    headers = {"X-User-Id": "2"}  # pm01
+    pid, tasks = await _make_inited_project(client, "前置矛盾测试", pm_id=2, init_user=2)
+    phase2 = [t for t in tasks if t["phase"] == "resource_confirm"]
+    a, b = phase2[0], phase2[1]
+
+    # 人为制造矛盾：B 开始日早于 A 结束日（工期保持原值）
+    b_dur = (date.fromisoformat(b["planned_end"]) - date.fromisoformat(b["planned_start"])).days
+    b_start = (date.fromisoformat(a["planned_end"]) - timedelta(days=3)).isoformat()
+    b_end = (date.fromisoformat(b_start) + timedelta(days=b_dur)).isoformat()
+    resp = await client.put(f"/api/tasks/{b['id']}", json={
+        "planned_start": b_start, "planned_end": b_end}, headers=headers)
+    assert resp.status_code == 200
+
+    # 建 precedes（A 前置于 B）→ B 应顺推到 A 结束次日
+    resp = await client.post(f"/api/tasks/{b['id']}/relations", json={
+        "relation_type": "precedes", "related_task_id": a["id"]}, headers=headers)
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body.get("rescheduled", 0) >= 1
+
+    resp = await client.get(f"/api/tasks/{b['id']}", headers=headers)
+    nb = resp.json()
+    expected_start = (date.fromisoformat(a["planned_end"]) + timedelta(days=1)).isoformat()
+    assert nb["planned_start"] == expected_start
+    # 工期保持（3 天）
+    assert (date.fromisoformat(nb["planned_end"]) - date.fromisoformat(nb["planned_start"])).days == \
+           (date.fromisoformat(b["planned_end"]) - date.fromisoformat(b["planned_start"])).days
+
+    # 锁定 auto_schedule 的后继不自动顺推
+    c = phase2[2]
+    resp = await client.put(f"/api/tasks/{c['id']}", json={"auto_schedule": False}, headers=headers)
+    assert resp.status_code == 200
+    c_start = (date.fromisoformat(a["planned_end"]) - timedelta(days=2)).isoformat()
+    c_end = (date.fromisoformat(c["planned_end"]) - timedelta(days=2)).isoformat()
+    resp = await client.put(f"/api/tasks/{c['id']}", json={
+        "planned_start": c_start, "planned_end": c_end}, headers=headers)
+    assert resp.status_code == 200
+    resp = await client.post(f"/api/tasks/{c['id']}/relations", json={
+        "relation_type": "precedes", "related_task_id": a["id"]}, headers=headers)
+    assert resp.status_code == 201
+    assert resp.json().get("rescheduled", 0) == 0
+    resp = await client.get(f"/api/tasks/{c['id']}", headers=headers)
+    assert resp.json()["planned_start"] == c_start

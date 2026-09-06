@@ -133,6 +133,8 @@ async def list_tasks(
             "assignee_name": assignee_name,
             "reviewer_id": task.reviewer_id,
             "priority": task.priority,
+            "progress": task.progress,
+            "auto_schedule": task.auto_schedule,
             "planned_start": task.planned_start,
             "planned_end": task.planned_end,
             "actual_start": task.actual_start,

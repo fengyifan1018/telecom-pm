@@ -399,10 +399,29 @@ async def create_relation(
         relation_type=data.relation_type, created_by=current_user.id,
     )
     db.add(rel)
+
+    # precedes 日期矛盾修复：后继任务开始早于前置结束时，自动顺推到前置结束次日
+    # （仅 auto_schedule 任务；工期保持；沿链继续顺推），回传顺延数
+    rescheduled = 0
+    if data.relation_type == "precedes":
+        from app.services import schedule_service
+        pred = await db.get(Task, from_tid)
+        succ_task = await db.get(Task, to_tid)
+        if (pred and succ_task and succ_task.auto_schedule
+                and succ_task.planned_start and pred.planned_end
+                and succ_task.planned_start <= pred.planned_end):
+            from datetime import timedelta as _td
+            delta = (pred.planned_end + _td(days=1) - succ_task.planned_start).days
+            old_end = succ_task.planned_end
+            succ_task.planned_start = succ_task.planned_start + _td(days=delta)
+            succ_task.planned_end = succ_task.planned_end + _td(days=delta)
+            rescheduled = 1 + await schedule_service.propagate(db, succ_task, old_end, succ_task.planned_end)
+
     await db.commit()
     await db.refresh(rel)
     return {"relation_id": rel.id, "relation_type": rel.relation_type,
-            "from_task_id": rel.from_task_id, "to_task_id": rel.to_task_id}
+            "from_task_id": rel.from_task_id, "to_task_id": rel.to_task_id,
+            "rescheduled": rescheduled}
 
 
 @router.delete("/relations/{relation_id}", status_code=204)
