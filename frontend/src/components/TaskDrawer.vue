@@ -64,7 +64,19 @@ const escalationForm = ref({ severity: 'medium', description: '' })
 
 // 评论 @ 提及：输入 @ 弹出候选（过滤↑↓Enter/点击插入 @显示名前缀，与后端匹配规则一致）
 const commentInputRef = ref(null)
-const mention = ref({ open: false, query: '', start: -1, index: 0, above: true })
+const mention = ref({ open: false, query: '', start: -1, index: 0 })
+const mentionPos = ref({ top: 0, left: 0 })
+
+// 弹层按输入框视口坐标 fixed 定位：脱离抽屉滚动区裁切；上方放不下自动转下方
+function positionMentionPop() {
+  const el = commentTextareaEl()
+  if (!el) return
+  const r = el.getBoundingClientRect()
+  const H = 270, W = 260
+  const top = r.top > H + 12 ? r.top - H - 6 : r.bottom + 6
+  const left = Math.min(Math.max(8, r.left), window.innerWidth - W - 8)
+  mentionPos.value = { top, left }
+}
 const mentionCandidates = computed(() => {
   const q = mention.value.query.toLowerCase()
   return users.value
@@ -87,18 +99,20 @@ function onCommentInput() {
   const pos = el?.selectionStart ?? newComment.value.length
   const m = newComment.value.slice(0, pos).match(/@([^\s@]*)$/)
   if (m) {
-    // 上方空间不足（贴近抽屉可视区顶部）时翻转到下方弹出，避免被滚动区上缘裁切
-    const el2 = commentTextareaEl()
-    const body = el2?.closest('.el-drawer__body')
-    const box = el2?.closest('.comment-box')
-    const aboveOk = body && box
-      ? (box.getBoundingClientRect().top - body.getBoundingClientRect().top) > 300
-      : true
-    mention.value = { open: true, query: m[1], start: pos - m[1].length - 1, index: 0, above: aboveOk }
+    mention.value = { open: true, query: m[1], start: pos - m[1].length - 1, index: 0 }
+    positionMentionPop()
   } else {
     mention.value.open = false
   }
 }
+
+// 抽屉滚动时弹层跟随输入框重新定位
+function onDocScrollCapture(e) {
+  if (!mention.value.open) return
+  if (commentTextareaEl()?.closest('.el-drawer__body')?.contains(e.target)) positionMentionPop()
+}
+onMounted(() => document.addEventListener('scroll', onDocScrollCapture, true))
+onUnmounted(() => document.removeEventListener('scroll', onDocScrollCapture, true))
 function closeMention() { mention.value.open = false }
 function pickMention(u) {
   const el = commentTextareaEl()
@@ -638,7 +652,7 @@ function close() {
           </div>
           <div class="comment-box">
             <div v-if="mention.open && mentionCandidates.length" class="mention-pop"
-                 :class="mention.above ? 'is-above' : 'is-below'">
+                 :style="{ top: mentionPos.top + 'px', left: mentionPos.left + 'px' }">
               <div v-for="(u, i) in mentionCandidates" :key="u.id" class="mention-item"
                    :class="{ 'is-active': i === mention.index }"
                    @mousedown.prevent="pickMention(u)" @mousemove="mention.index = i">
@@ -805,9 +819,8 @@ function close() {
   align-items: flex-start;
 }
 .mention-pop {
-  position: absolute;
-  left: 0;
-  z-index: 20;
+  position: fixed;
+  z-index: 3000;
   min-width: 240px;
   max-height: 264px;
   overflow-y: auto;
@@ -816,12 +829,6 @@ function close() {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-pop);
   padding: 4px;
-}
-.mention-pop.is-above {
-  bottom: calc(100% + 6px);
-}
-.mention-pop.is-below {
-  top: calc(100% + 6px);
 }
 .mention-item {
   display: flex;
