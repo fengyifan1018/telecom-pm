@@ -217,7 +217,8 @@ const severityLabel = (s) => ({ low: '低', medium: '中', high: '高', critical
                 <span class="num" style="font-size: 12px; color: var(--el-text-color-secondary)">{{ p.progress_pct }}%</span>
               </div>
               <el-tag v-if="p.is_delayed" type="danger" size="small" effect="plain">已延期</el-tag>
-              <span class="num" style="font-size: 12px; color: var(--el-text-color-placeholder)">{{ p.planned_end || '—' }}</span>
+              <span v-if="p.planned_end" class="num" style="font-size: 12px; color: var(--el-text-color-placeholder)">{{ p.planned_end }}</span>
+              <span v-else style="font-size: 12px; color: var(--el-text-color-placeholder)">未排期</span>
             </div>
           </template>
           <div v-else style="color: var(--el-text-color-secondary); font-size: 13px">暂无进行中的项目</div>

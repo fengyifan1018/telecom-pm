@@ -293,7 +293,7 @@ async def workbench(
         rows = (await db.execute(
             select(Project.id, Project.name, Project.planned_end)
             .where(Project.id.in_(active_ids))
-            .order_by(Project.planned_end)
+            .order_by(Project.planned_end.is_(None), Project.planned_end)
             .limit(5)
         )).all()
         for pid, name, pend in rows:
