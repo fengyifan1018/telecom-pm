@@ -142,6 +142,16 @@ onMounted(async () => {
 
 function goProject(task) { router.push(`/projects/${task.project_id}`) }
 
+function clearAllFilters() {
+  filterProject.value = ''
+  filterPhase.value = ''
+  filterAssignee.value = ''
+  filterKeyword.value = ''
+  filterPriority.value = ''
+  filterOverdue.value = false
+  filterStatus.value = []
+}
+
 function getProjectName(projectId) {
   const p = projects.value.find((p) => p.id === projectId)
   return p?.name?.slice(0, 10) || ''
@@ -247,7 +257,7 @@ async function onDrop(event, colKey) {
         </div>
       </div>
     </div>
-    <TaskListView v-else :filters="listFilters" />
+    <TaskListView v-else :filters="listFilters" @clear-filters="clearAllFilters" />
   </div>
 </template>
 

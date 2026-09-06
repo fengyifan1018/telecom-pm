@@ -2,6 +2,7 @@
 import { ref, watch, computed, onMounted } from 'vue'
 import { listTasks, startTask, submitTask, approveTask, rejectTask, updateTask, batchUpdateTasks, listUsers } from '../api/tasks'
 import TaskDrawer from './TaskDrawer.vue'
+import EmptyState from './EmptyState.vue'
 import { STATUS_MAP, PHASE_MAP, PRIORITY_MAP, PRIORITY_OPTIONS, ROLE_MAP, groupUsersByRole } from '../utils/constants'
 import { todayStr } from '../utils/format'
 import { useAuthStore } from '../stores/auth'
@@ -10,6 +11,10 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 const props = defineProps({
   filters: { type: Object, default: () => ({}) },
 })
+const emit = defineEmits(['clear-filters'])
+const hasFilters = computed(() =>
+  Object.values(props.filters || {}).some(v => v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && !v.length))
+)
 
 const auth = useAuthStore()
 const tableRef = ref(null)
@@ -193,10 +198,10 @@ async function saveField(row, patch) {
               @selection-change="onSelectionChange"
               highlight-current-row style="cursor: pointer">
       <el-table-column v-if="canBatch" type="selection" width="40" />
-      <el-table-column prop="task_no" label="编号" width="160" />
+      <el-table-column prop="task_no" label="编号" width="120" show-overflow-tooltip />
       <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="project_name" label="项目" width="140" show-overflow-tooltip />
-      <el-table-column label="阶段" width="100">
+      <el-table-column prop="project_name" label="项目" width="130" show-overflow-tooltip />
+      <el-table-column label="阶段" width="90">
         <template #default="{ row }">{{ PHASE_MAP[row.phase] || row.phase }}</template>
       </el-table-column>
       <el-table-column label="状态" width="90">
@@ -204,7 +209,7 @@ async function saveField(row, patch) {
           <el-tag :type="STATUS_MAP[row.status]?.type" size="small">{{ STATUS_MAP[row.status]?.label }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="进度" width="110" class-name="col-progress">
+      <el-table-column label="进度" width="90" class-name="col-progress">
         <template #default="{ row }">
           <div class="progress-cell">
             <el-progress :percentage="row.progress || 0" :stroke-width="6" :show-text="false" style="width: 60px" />
@@ -253,6 +258,11 @@ async function saveField(row, patch) {
           </template>
         </template>
       </el-table-column>
+      <template #empty>
+        <EmptyState :text="hasFilters ? '没有符合筛选条件的任务' : '暂无任务'">
+          <el-button v-if="hasFilters" size="small" @click="emit('clear-filters')">清除筛选</el-button>
+        </EmptyState>
+      </template>
     </el-table>
 
     <div style="display: flex; justify-content: flex-end; margin-top: 12px">

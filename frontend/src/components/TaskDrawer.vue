@@ -414,7 +414,18 @@ function close() {
 </script>
 
 <template>
-  <el-drawer :model-value="visible" @update:model-value="close" :size="isMobile ? '100%' : '720px'" :title="task?.title">
+  <el-drawer :model-value="visible" @update:model-value="close" :size="isMobile ? '100%' : '720px'">
+    <template #header>
+      <div v-if="task">
+        <div class="drawer-title">{{ task.title }}</div>
+        <div class="drawer-title-meta">
+          <span class="num">{{ task.task_no }}</span>
+          <el-tag :type="STATUS_MAP[task.status]?.type" size="small">{{ STATUS_MAP[task.status]?.label }}</el-tag>
+          <span v-if="task.project_name">{{ task.project_name }}</span>
+          <span v-else-if="task.phase">{{ PHASE_MAP[task.phase] }}</span>
+        </div>
+      </div>
+    </template>
     <template v-if="task">
       <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between">
         <el-button v-if="showProjectLink" link type="primary" size="small" @click="emit('view-project', task.project_id)">
@@ -560,14 +571,15 @@ function close() {
               <div v-else class="activity-line">
                 <span class="feed-meta">{{ formatDateTime(item.t.created_at) }}</span>
                 <span style="color: var(--el-color-primary)">{{ item.t.operator_name }}</span>:
-                {{ item.t.from_status || '(创建)' }} → {{ item.t.to_status }}
+                {{ item.t.from_status ? (STATUS_MAP[item.t.from_status]?.label || item.t.from_status) : '创建' }} → {{ STATUS_MAP[item.t.to_status]?.label || item.t.to_status }}
                 <span v-if="item.t.remark" style="color: var(--el-color-warning); margin-left: 8px">{{ item.t.remark }}</span>
               </div>
             </template>
             <EmptyState v-if="activityFeed.length === 0" text="暂无动态" :size="36" />
           </div>
           <div style="display: flex; gap: 8px">
-            <el-input v-model="newComment" placeholder="输入评论，支持 @用户名 提及..." @keyup.enter="handleComment" />
+            <el-input v-model="newComment" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }"
+                      placeholder="输入评论，支持 @用户名 提及；Ctrl+Enter 发送" @keydown.enter.ctrl="handleComment" />
             <el-button type="primary" @click="handleComment">发送</el-button>
           </div>
         </el-tab-pane>
@@ -715,6 +727,20 @@ function close() {
   padding: 8px 10px;
   background: var(--el-fill-color-light);
   border-radius: var(--radius-sm);
+}
+.drawer-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-title);
+  margin-bottom: 6px;
+  word-break: break-all;
+}
+.drawer-title-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 .drawer-nav {
   display: flex;

@@ -245,7 +245,7 @@ const severityLabel = (s) => ({ low: '低', medium: '中', high: '高', critical
       <div v-if="(wb?.activity || []).length === 0" style="color: var(--el-text-color-secondary); font-size: 13px">暂无动态</div>
       <div v-for="(a, i) in wb?.activity || []" :key="i" class="ov-activity-item">
         <span style="color: var(--el-color-primary)">{{ a.operator_name }}</span>
-        <span>{{ a.task_title }}（{{ a.from_status || '创建' }} → {{ a.to_status }}）</span>
+        <span>{{ a.task_title }}（{{ a.from_status ? (STATUS_MAP[a.from_status]?.label || a.from_status) : '创建' }} → {{ STATUS_MAP[a.to_status]?.label || a.to_status }}）</span>
         <span class="ov-risk-meta" style="margin-left: auto">{{ timeAgo(a.created_at) }}</span>
       </div>
     </el-card>
