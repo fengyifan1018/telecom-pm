@@ -37,3 +37,21 @@ export function timeAgo(value) {
   if (d < 30) return `${d} 天前`
   return formatDate(value)
 }
+
+/** 截止日临近程度：overdue 已超期 / today 今天到期 / soon 明天到期 / normal */
+export function dueTone(endDate, status) {
+  if (!endDate || ['done', 'cancelled'].includes(status)) return 'normal'
+  const diff = Math.floor((new Date(endDate) - new Date(todayStr())) / 86400000)
+  if (diff < 0) return 'overdue'
+  if (diff === 0) return 'today'
+  if (diff === 1) return 'soon'
+  return 'normal'
+}
+
+/** 截止日颜色（列表/卡片通用）：超期红、今明橙 */
+export function dueColor(endDate, status) {
+  const t = dueTone(endDate, status)
+  if (t === 'overdue') return 'var(--el-color-danger)'
+  if (t === 'today' || t === 'soon') return 'var(--el-color-warning)'
+  return ''
+}

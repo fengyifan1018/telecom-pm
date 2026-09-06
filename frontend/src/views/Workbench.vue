@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { getWorkbench } from '../api/tasks'
 import { STATUS_MAP, PRIORITY_MAP } from '../utils/constants'
-import { timeAgo } from '../utils/format'
+import { timeAgo, dueColor } from '../utils/format'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { PieChart } from 'echarts/charts'
@@ -231,7 +231,7 @@ const severityLabel = (s) => ({ low: '低', medium: '中', high: '高', critical
               <el-tag :type="priorityTagType(d.priority)" size="small">{{ priorityLabel(d.priority) }}</el-tag>
               <span class="due-title">{{ d.title }}</span>
               <span class="due-project">{{ d.project_name }}</span>
-              <span class="num due-date">{{ d.planned_end }}</span>
+              <span class="num due-date" :style="{ color: dueColor(d.planned_end) }">{{ d.planned_end }}</span>
             </div>
           </template>
           <div v-else style="color: var(--el-text-color-secondary); font-size: 13px">暂无待办任务</div>

@@ -321,7 +321,8 @@ npm run dev   # 默认 http://localhost:5173, proxy /api -> 8000
 20. **批量操作 + 指派人角色分组** — `POST /tasks/batch-update`（task.assign 权限）：一次批量指派/改优先级/改截止日，部分失败不影响其余（failed 明细回传），截止日变化走排期联动、指派发通知、审计记 batch_update；任务列表多选列（PM/管理员可见）+ 批量操作栏（指派下拉按角色分组/优先级/日期 + 取消选择），抽屉指派与项目详情快捷指派下拉同步改为 el-option-group 角色分组（新增 `groupUsersByRole` 工具，PM→网络→现场→采购→运营→销售→管理员排序）
 21. **任务列表/详情第一批优化** — ①动态状态码中文化（抽屉 feed/项目详情/工作台三处，原为 active→review 英文码）②评论改多行 textarea（Ctrl+Enter 发送）③列表瘦身：编号 160→120+tooltip、项目 140→130、阶段/进度→90，总宽 1210 不再溢出 1440 屏 ④列表空态 EmptyState+清除筛选（emit 到任务页容器统一重置）⑤抽屉标题 meta 行（编号·状态 tag·项目名，header 插槽）
 22. **评论 @ 动态候选** — 评论框输入 @ 实时弹出人员候选（按用户名/显示名/姓氏前缀过滤，显示名+角色+用户名，排除自己），↑↓/Enter/点击插入 `@显示名前缀`（与后端 notify_mentions 匹配规则一致），Esc/失焦关闭；解决"记不住用户名导致 @ 不命中、通知静默丢失"问题
-23. **遗留死表** — `task_dependencies` 已移除
+23. **任务列表/详情第二批优化（A~G 全做）** — ①审核通过加确认弹窗（实时计算并提示"本阶段还有 N 个必要任务未完成/将激活下一阶段"，防误触级联）②今明到期橙色标记（dueTone/dueColor 工具：超期红、今天橙加粗+「今天」、明天橙；done/cancelled 不标；列表/看板卡/工作台/项目详情四处接入）③建 precedes 关系时日期矛盾自动顺推（后继开始早于前置结束 → 顺推至前置结束次日，仅 auto_schedule 任务，沿链传播，响应回传 rescheduled）④附件拖拽上传区（el-upload drag）⑤看板卡 3px 进度条⑥进度滑杆限 active 状态（review 只读）⑦动态 feed"仅看评论"过滤。**顺带修复真 bug：list_tasks 查询白名单漏 progress/auto_schedule 字段**——进度列上线以来数据一直为空
+24. **遗留死表** — `task_dependencies` 已移除
 
 ## 当前已注册路由汇总（65+个端点）
 

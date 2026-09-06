@@ -11,7 +11,7 @@ import TaskDrawer from '../components/TaskDrawer.vue'
 import GanttChart from '../components/GanttChart.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import EmptyState from '../components/EmptyState.vue'
-import { formatDate, timeAgo, todayStr } from '../utils/format'
+import { formatDate, timeAgo, todayStr, dueColor } from '../utils/format'
 import { listCRs, createCR, approveCR, rejectCR } from '../api/change_requests'
 import { listDeliverables, uploadDeliverable, deleteDeliverable } from '../api/deliverables'
 import http from '../api/index'
@@ -613,7 +613,9 @@ async function handleRejectCR() {
                 <template #default="{ row }">{{ row.assignee_name || '—' }}</template>
               </el-table-column>
               <el-table-column label="截止" width="100">
-                <template #default="{ row }">{{ row.planned_end || '—' }}</template>
+                <template #default="{ row }">
+                  <span class="num" :style="{ color: dueColor(row.planned_end) }">{{ row.planned_end || '—' }}</span>
+                </template>
               </el-table-column>
               <el-table-column label="状态" width="86">
                 <template #default="{ row }">

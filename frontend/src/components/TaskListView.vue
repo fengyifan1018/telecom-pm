@@ -4,7 +4,7 @@ import { listTasks, startTask, submitTask, approveTask, rejectTask, updateTask, 
 import TaskDrawer from './TaskDrawer.vue'
 import EmptyState from './EmptyState.vue'
 import { STATUS_MAP, PHASE_MAP, PRIORITY_MAP, PRIORITY_OPTIONS, ROLE_MAP, groupUsersByRole } from '../utils/constants'
-import { todayStr } from '../utils/format'
+import { todayStr, dueColor, dueTone } from '../utils/format'
 import { useAuthStore } from '../stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -241,7 +241,7 @@ async function saveField(row, patch) {
                             style="width: 110px" @change="(v) => saveField(row, { planned_end: v })" @blur="stopEdit" />
           </div>
           <span v-else @click.stop="startEdit(row, 'planned_end')"
-                :style="{ color: isOverdue(row) ? 'var(--el-color-danger)' : '', fontWeight: isOverdue(row) ? 'bold' : '', cursor: canStart(row) ? 'pointer' : '' }">
+                :style="{ color: dueColor(row.planned_end, row.status), fontWeight: isOverdue(row) || dueTone(row.planned_end, row.status) === 'today' ? 'bold' : '', cursor: canStart(row) ? 'pointer' : '' }">
             {{ row.planned_end || '—' }}
           </span>
         </template>

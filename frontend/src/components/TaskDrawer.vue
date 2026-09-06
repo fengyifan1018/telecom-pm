@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
-import { ArrowLeft, ArrowRight, Star, StarFilled } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, Star, StarFilled, UploadFilled } from '@element-plus/icons-vue'
 import { startTask, submitTask, approveTask, rejectTask, assignTask, updateTask, getComments, addComment, getTransitions, listUsers, listAttachments, uploadAttachment, deleteAttachment, getAttachmentDownloadUrl, listEscalations, createEscalation, resolveEscalation, listTasks, getTaskRelations, addTaskRelation, deleteTaskRelation, getTaskWatch, toggleTaskWatch } from '../api/tasks'
 import http from '../api/index'
 import EmptyState from './EmptyState.vue'
@@ -44,11 +44,13 @@ const userGroups = computed(() => groupUsersByRole(users.value))
 const comments = ref([])
 const transitions = ref([])
 const newComment = ref('')
+const onlyComments = ref(false)
 // 评论 + 流转记录合并的动态时间线（时间升序）
 const activityFeed = computed(() => [
   ...comments.value.map(c => ({ kind: 'comment', key: 'c' + c.id, ts: c.created_at || '', c })),
   ...transitions.value.map(t => ({ kind: 'transition', key: 't' + t.id, ts: t.created_at || '', t })),
 ].sort((x, y) => String(x.ts).localeCompare(String(y.ts))))
+const activityFiltered = computed(() => onlyComments.value ? activityFeed.value.filter(i => i.kind === 'comment') : activityFeed.value)
 const loading = ref(false)
 const users = ref([])
 const assigneeId = ref(null)
@@ -267,6 +269,20 @@ async function handleSubmit() {
 }
 
 async function handleApprove() {
+  let consequence = ''
+  try {
+    const res = await listTasks({ project_id: props.task.project_id, phase: props.task.phase, page_size: 100 })
+    const remaining = res.data.items.filter(x => x.is_required && x.id !== props.task.id && x.status !== 'done').length
+    consequence = remaining === 0
+      ? '该任务完成后本阶段即完成，系统将自动激活下一阶段任务'
+      : `本阶段还有 ${remaining} 个必要任务未完成`
+  } catch { /* 查询失败不阻塞确认 */ }
+  const msg = '确认审核通过「' + props.task.title + '」？' + (consequence ? '；' + consequence : '')
+  try {
+    await ElMessageBox.confirm(msg, '审核确认', {
+      confirmButtonText: '通过', cancelButtonText: '取消', type: 'warning',
+    })
+  } catch { return }
   loading.value = true
   try {
     await approveTask(props.task.id)
@@ -328,7 +344,7 @@ async function handleAutoScheduleChange(val) {
 const progressValue = ref(0)
 const canEditProgress = computed(() => {
   if (!props.task) return false
-  return canManageRelation.value && ['active', 'review'].includes(props.task.status)
+  return canManageRelation.value && props.task.status === 'active'
 })
 async function handleProgressChange(val) {
   try {
@@ -633,8 +649,11 @@ function close() {
       <el-tabs v-model="activeTab">
         <!-- 动态：评论 + 流转记录合并时间线 -->
         <el-tab-pane :label="`动态 (${comments.length + transitions.length})`" name="activity">
+          <div style="display: flex; justify-content: flex-end; margin-bottom: 4px">
+            <el-checkbox v-model="onlyComments" size="small">仅看评论</el-checkbox>
+          </div>
           <div style="max-height: 480px; overflow-y: auto; margin-bottom: 12px">
-            <template v-for="item in activityFeed" :key="item.key">
+            <template v-for="item in activityFiltered" :key="item.key">
               <div v-if="item.kind === 'comment'" class="comment-item">
                 <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-bottom: 4px">
                   {{ item.c.user_name || `用户${item.c.user_id}` }} · {{ formatDateTime(item.c.created_at) }}
@@ -675,9 +694,13 @@ function close() {
               :auto-upload="false"
               :show-file-list="false"
               :on-change="(file) => handleUpload(file.raw)"
-              style="display: inline-block"
+              drag
+              class="attachment-drag"
             >
-              <el-button size="small" type="primary" :loading="uploadLoading">上传文件</el-button>
+              <div class="attachment-drag__inner">
+                <el-icon :size="22" color="var(--el-text-color-secondary)"><UploadFilled /></el-icon>
+                <div class="attachment-drag__text">拖拽文件到此处，或 <span style="color: var(--el-color-primary)">点击上传</span></div>
+              </div>
             </el-upload>
             <!-- 拍照上传（移动端） -->
             <el-button v-if="isMobile" size="small" type="success" :loading="uploadLoading" @click="triggerCamera">
@@ -852,6 +875,10 @@ function close() {
   border-top: 1px solid var(--el-border-color-lighter);
   margin-top: 2px;
 }
+.attachment-drag { width: 100%; }
+.attachment-drag :deep(.el-upload-dragger) { padding: 14px 0; }
+.attachment-drag__inner { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.attachment-drag__text { font-size: 13px; color: var(--el-text-color-secondary); }
 .drawer-title {
   font-size: 16px;
   font-weight: 600;
