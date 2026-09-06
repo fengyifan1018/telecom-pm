@@ -45,7 +45,6 @@ PERMISSION_DEFS: dict[str, dict] = {
     "menu.templates":    {"label": "菜单：模板管理",    "default_roles": ["admin", "pm", "operations", "procurement", "network_engineer", "field_engineer"]},
     "menu.customers":    {"label": "菜单：客户管理",    "default_roles": ["admin", "pm"]},
     "menu.users":        {"label": "菜单：用户管理",    "default_roles": ["admin"]},
-    "menu.groups":       {"label": "菜单：用户组管理",  "default_roles": ["admin"]},
     "menu.permissions":  {"label": "菜单：权限管理",    "default_roles": ["admin"]},
 }
 

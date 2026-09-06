@@ -45,7 +45,6 @@ const menus = [
   { path: '/templates', label: '模板管理', icon: Document, perm: 'menu.templates' },
   { path: '/customers', label: '客户管理', icon: OfficeBuilding, perm: 'menu.customers' },
   { path: '/users', label: '用户管理', icon: User, perm: 'menu.users' },
-  { path: '/groups', label: '用户组管理', icon: UserFilled, perm: 'menu.groups' },
   { path: '/permissions', label: '权限管理', icon: Lock, perm: 'menu.permissions' },
   { path: '/audit', label: '操作审计', icon: Tickets, adminOnly: true },
 ]
