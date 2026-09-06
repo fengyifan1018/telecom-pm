@@ -46,6 +46,13 @@ class TaskAssign(BaseModel):
     reviewer_id: Optional[int] = None
 
 
+class BatchTaskUpdate(BaseModel):
+    task_ids: list[int] = Field(min_length=1, max_length=100)
+    assignee_id: Optional[int] = None
+    priority: Optional[int] = Field(default=None, ge=1, le=5)
+    planned_end: Optional[date] = None
+
+
 class RelationCreate(BaseModel):
     relation_type: Literal["precedes", "blocks"]
     related_task_id: int

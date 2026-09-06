@@ -1,8 +1,8 @@
 <script setup>
-import { ref, watch, computed } from 'vue'
-import { listTasks, startTask, submitTask, approveTask, rejectTask, updateTask } from '../api/tasks'
+import { ref, watch, computed, onMounted } from 'vue'
+import { listTasks, startTask, submitTask, approveTask, rejectTask, updateTask, batchUpdateTasks, listUsers } from '../api/tasks'
 import TaskDrawer from './TaskDrawer.vue'
-import { STATUS_MAP, PHASE_MAP, PRIORITY_MAP, PRIORITY_OPTIONS } from '../utils/constants'
+import { STATUS_MAP, PHASE_MAP, PRIORITY_MAP, PRIORITY_OPTIONS, ROLE_MAP, groupUsersByRole } from '../utils/constants'
 import { todayStr } from '../utils/format'
 import { useAuthStore } from '../stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -12,6 +12,7 @@ const props = defineProps({
 })
 
 const auth = useAuthStore()
+const tableRef = ref(null)
 const tasks = ref([])
 const total = ref(0)
 const page = ref(1)
@@ -23,6 +24,37 @@ const loading = ref(false)
 const drawerVisible = ref(false)
 const selectedTask = ref(null)
 const rowLoading = ref({})
+
+// 批量操作（PM/管理员）
+const users = ref([])
+const userGroups = computed(() => groupUsersByRole(users.value))
+const canBatch = computed(() => ['pm', 'admin'].includes(auth.user?.role))
+const selectedRows = ref([])
+const bulkAssignee = ref(null)
+const bulkPriority = ref(null)
+const bulkDate = ref(null)
+const bulkLoading = ref(false)
+onMounted(async () => {
+  fetchData()
+  if (canBatch.value) users.value = (await listUsers()).data || []
+})
+function onSelectionChange(rows) { selectedRows.value = rows }
+function clearSelection() { selectedRows.value = []; tableRef.value?.clearSelection() }
+async function applyBulk(patch) {
+  if (!selectedRows.value.length) return
+  bulkLoading.value = true
+  try {
+    const res = await batchUpdateTasks({ task_ids: selectedRows.value.map(r => r.id), ...patch })
+    const f = res.data.failed?.length || 0
+    ElMessage.success(`已更新 ${res.data.updated} 个任务` + (f ? `，${f} 个失败` : ''))
+    bulkAssignee.value = null; bulkPriority.value = null; bulkDate.value = null
+    await fetchData()
+  } catch (e) {
+    // 错误提示由全局拦截器统一处理
+  } finally {
+    bulkLoading.value = false
+  }
+}
 
 function buildParams() {
   const f = props.filters || {}
@@ -64,7 +96,10 @@ function onSortChange({ prop, order: ord }) {
 
 function onPageChange(p) { page.value = p; fetchData() }
 
-function openTask(row) { selectedTask.value = row; drawerVisible.value = true }
+function openTask(row, column) {
+  if (column?.type === 'selection') return
+  selectedTask.value = row; drawerVisible.value = true
+}
 
 function isOverdue(row) {
   return row.planned_end && row.planned_end < todayStr() && !['done', 'cancelled'].includes(row.status)
@@ -132,8 +167,32 @@ async function saveField(row, patch) {
 
 <template>
   <div v-loading="loading">
-    <el-table stripe :data="tasks" @row-click="openTask" @sort-change="onSortChange"
+    <div v-if="canBatch && selectedRows.length" class="bulk-bar">
+      <span style="font-size: 13px">已选 <b class="num">{{ selectedRows.length }}</b> 项</span>
+      <el-select v-model="bulkAssignee" placeholder="批量指派给…" size="small" filterable
+                 style="width: 170px" @click.stop>
+        <el-option-group v-for="g in userGroups" :key="g.role" :label="g.label">
+          <el-option v-for="u in g.users" :key="u.id" :label="u.display_name" :value="u.id" />
+        </el-option-group>
+      </el-select>
+      <el-button size="small" type="primary" :disabled="!bulkAssignee" :loading="bulkLoading"
+                 @click="applyBulk({ assignee_id: bulkAssignee })">指派</el-button>
+      <el-select v-model="bulkPriority" placeholder="优先级" size="small" style="width: 96px" @click.stop>
+        <el-option v-for="o in PRIORITY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+      </el-select>
+      <el-button size="small" :disabled="!bulkPriority" :loading="bulkLoading"
+                 @click="applyBulk({ priority: bulkPriority })">应用</el-button>
+      <el-date-picker v-model="bulkDate" type="date" size="small" placeholder="截止日"
+                      value-format="YYYY-MM-DD" style="width: 140px" @click.stop />
+      <el-button size="small" :disabled="!bulkDate" :loading="bulkLoading"
+                 @click="applyBulk({ planned_end: bulkDate })">应用</el-button>
+      <el-button size="small" text @click="clearSelection">取消选择</el-button>
+    </div>
+
+    <el-table ref="tableRef" stripe :data="tasks" @row-click="openTask" @sort-change="onSortChange"
+              @selection-change="onSelectionChange"
               highlight-current-row style="cursor: pointer">
+      <el-table-column v-if="canBatch" type="selection" width="40" />
       <el-table-column prop="task_no" label="编号" width="160" />
       <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
       <el-table-column prop="project_name" label="项目" width="140" show-overflow-tooltip />
@@ -213,6 +272,17 @@ async function saveField(row, patch) {
 </template>
 
 <style scoped>
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: var(--el-color-primary-light-9);
+  border: 1px solid var(--el-color-primary-light-7);
+  border-radius: var(--radius-md);
+}
 .progress-cell {
   display: flex;
   align-items: center;

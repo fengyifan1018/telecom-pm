@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { getProject, initProject, submitInitiation, initApproval, updateProject, suspendProject, resumeProject, deleteProject, getProjectActivity, getProjectOpenEscalations } from '../api/projects'
 import { listTasks, listUsers, assignTask } from '../api/tasks'
-import { STATUS_MAP, PRODUCT_TYPE_MAP, PHASE_MAP, PHASE_ORDER_BY_PRODUCT, PHASE_ORDER } from '../utils/constants'
+import { STATUS_MAP, PRODUCT_TYPE_MAP, PHASE_MAP, PHASE_ORDER_BY_PRODUCT, PHASE_ORDER, groupUsersByRole } from '../utils/constants'
 import PhaseProgress from '../components/PhaseProgress.vue'
 import { Tickets, CircleCheck, Clock, AlarmClock, ArrowDown, OfficeBuilding } from '@element-plus/icons-vue'
 import TaskDrawer from '../components/TaskDrawer.vue'
@@ -43,6 +43,7 @@ const deliverableUploadPhase = ref('')
 const deliverableUploadRef = ref(null)
 const pmUsers = ref([])
 const members = ref([])
+const memberGroups = computed(() => groupUsersByRole(members.value))
 const activity = ref([])
 const openEscalations = ref([])
 
@@ -673,7 +674,9 @@ async function handleRejectCR() {
                     <div v-if="canAssign" @click.stop>
                       <el-select :model-value="row.assignee_id" size="small" placeholder="点击指派"
                                  style="width: 110px" @change="(v) => quickAssign(row, v)">
-                        <el-option v-for="u in members" :key="u.id" :label="u.display_name" :value="u.id" />
+                        <el-option-group v-for="g in memberGroups" :key="g.role" :label="g.label">
+                          <el-option v-for="u in g.users" :key="u.id" :label="u.display_name" :value="u.id" />
+                        </el-option-group>
                       </el-select>
                     </div>
                     <template v-else>

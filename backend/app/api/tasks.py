@@ -11,7 +11,7 @@ from app.models.project import Project
 from app.models.user import User
 from app.schemas.task import (
     TaskResponse, TaskUpdate, TaskAssign, TaskAction,
-    TaskTransitionResponse, CommentCreate, CommentResponse, RelationCreate,
+    TaskTransitionResponse, CommentCreate, CommentResponse, RelationCreate, BatchTaskUpdate,
 )
 from app.services import task_service
 from app.services.flow_engine import FlowEngine
@@ -95,6 +95,49 @@ async def update_task(
     await db.commit()
     await db.refresh(task)
     return TaskResponse.model_validate(task).model_copy(update={"rescheduled": rescheduled})
+
+
+@router.post("/batch-update")
+async def batch_update_tasks(
+    data: BatchTaskUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("task.assign")),
+):
+    """批量更新任务：指派 / 优先级 / 截止日（PM/管理员的高频派单操作）。部分失败不影响其余任务。"""
+    from app.services import schedule_service
+
+    updates = data.model_dump(exclude_unset=True)
+    task_ids = updates.pop("task_ids")
+    if not updates:
+        raise HTTPException(status_code=400, detail="未提供任何更新字段")
+
+    updated: list[int] = []
+    failed: list[dict] = []
+    for tid in task_ids:
+        task = await db.get(Task, tid)
+        if not task:
+            failed.append({"task_id": tid, "reason": "任务不存在"})
+            continue
+        old_end = task.planned_end
+        for field, value in updates.items():
+            setattr(task, field, value)
+        # 截止日变化走排期联动（与单任务更新口径一致）
+        if "planned_end" in updates and task.planned_end != old_end:
+            await schedule_service.propagate(db, task, old_end, task.planned_end)
+        if "assignee_id" in updates and task.assignee_id:
+            await notify(
+                db, task.assignee_id, "task_assigned",
+                f"你被指派了任务: {task.title}",
+                related_task_id=task.id, related_project_id=task.project_id,
+            )
+        updated.append(tid)
+
+    if updated:
+        await log_action(db, current_user.id, current_user.display_name, "batch_update",
+                         "task", None, f"{len(updated)} 个任务",
+                         detail={"fields": sorted(updates.keys()), "task_ids": updated})
+    await db.commit()
+    return {"updated": len(updated), "task_ids": updated, "failed": failed}
 
 
 @router.put("/{task_id}/assign", response_model=TaskResponse)

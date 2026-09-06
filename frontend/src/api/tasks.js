@@ -5,6 +5,7 @@ export const listTasks = (params) => http.get('/tasks', { params })
 export const getTask = (id) => http.get(`/tasks/${id}`)
 
 export const updateTask = (id, data) => http.put(`/tasks/${id}`, data)
+export const batchUpdateTasks = (data) => http.post('/tasks/batch-update', data)
 
 export const assignTask = (id, data) => http.put(`/tasks/${id}/assign`, data)
 

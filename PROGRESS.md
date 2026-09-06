@@ -318,7 +318,8 @@ npm run dev   # 默认 http://localhost:5173, proxy /api -> 8000
 17. **项目详情头部对齐设计稿** — 蓝色圆角项目图标块；次要操作（编辑/暂停/恢复/取消/删除）收纳进"更多操作"下拉，主操作（立项）保留；页内面包屑移除（顶栏已有）
 18. **字号样式统一** — 项目详情：section-label 14px/600、统计数字 28px、任务描述 14px、阶段分组标题 14px/600（一级主列表 14px、嵌套表 small 的规则沿用）
 19. **立项审核流程** — 新状态 `init_pending`（立项审核中）：`draft` 显示名改为"待立项"；提交立项申请（`project.initiate`，含销售）→ init_pending → 立项审核（新权限 `project.init_approve`，默认管理员/运营）通过则生成任务树并激活、驳回填原因退回待立项并通知提交人（`init_submitted_by`/`init_reject_reason` 两列，migrate 已补）；PM/管理员直接立项路径保留，销售走 API 直立项被拦截；前端待立项/审核中徽章与按钮、列表筛选补齐（含已暂停）；通知类型新增 project_init_request/project_init_rejected
-20. **遗留死表** — `task_dependencies` 从未被写入（仅删项目时清理），待后续确认后移除
+20. **批量操作 + 指派人角色分组** — `POST /tasks/batch-update`（task.assign 权限）：一次批量指派/改优先级/改截止日，部分失败不影响其余（failed 明细回传），截止日变化走排期联动、指派发通知、审计记 batch_update；任务列表多选列（PM/管理员可见）+ 批量操作栏（指派下拉按角色分组/优先级/日期 + 取消选择），抽屉指派与项目详情快捷指派下拉同步改为 el-option-group 角色分组（新增 `groupUsersByRole` 工具，PM→网络→现场→采购→运营→销售→管理员排序）
+21. **遗留死表** — `task_dependencies` 已移除
 
 ## 当前已注册路由汇总（65+个端点）
 

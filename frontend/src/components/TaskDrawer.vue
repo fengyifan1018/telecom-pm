@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, Star, StarFilled } from '@element-plus/icons-vue
 import { startTask, submitTask, approveTask, rejectTask, assignTask, updateTask, getComments, addComment, getTransitions, listUsers, listAttachments, uploadAttachment, deleteAttachment, getAttachmentDownloadUrl, listEscalations, createEscalation, resolveEscalation, listTasks, getTaskRelations, addTaskRelation, deleteTaskRelation, getTaskWatch, toggleTaskWatch } from '../api/tasks'
 import http from '../api/index'
 import EmptyState from './EmptyState.vue'
-import { STATUS_MAP, PHASE_MAP, ROLE_MAP } from '../utils/constants'
+import { STATUS_MAP, PHASE_MAP, ROLE_MAP, groupUsersByRole } from '../utils/constants'
 import { formatDateTime } from '../utils/format'
 import { useAuthStore } from '../stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -40,6 +40,7 @@ const canStart = computed(() => {
   return props.task.assignee_id === auth.user?.id
 })
 
+const userGroups = computed(() => groupUsersByRole(users.value))
 const comments = ref([])
 const transitions = ref([])
 const newComment = ref('')
@@ -495,12 +496,9 @@ function close() {
                     style="width: 200px"
                     filterable
                   >
-                    <el-option
-                      v-for="u in users"
-                      :key="u.id"
-                      :label="`${u.display_name} (${ROLE_MAP[u.role] || u.role})`"
-                      :value="u.id"
-                    />
+                    <el-option-group v-for="g in userGroups" :key="g.role" :label="g.label">
+                      <el-option v-for="u in g.users" :key="u.id" :label="u.display_name" :value="u.id" />
+                    </el-option-group>
                   </el-select>
                   <el-button
                     size="small"

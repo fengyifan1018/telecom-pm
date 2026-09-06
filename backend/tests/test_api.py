@@ -722,3 +722,48 @@ async def test_project_initiation_approval(client: AsyncClient, seeded_db):
     # 列表筛选：立项审核中可筛出
     resp = await client.get("/api/projects?status=init_pending", headers={"X-User-Id": "1"})
     assert pid2 in [p["id"] for p in resp.json()["items"]]
+
+
+@pytest.mark.asyncio
+async def test_batch_update_tasks(client: AsyncClient, seeded_db):
+    pid, tasks = await _make_inited_project(client, "批量操作测试", pm_id=2, init_user=2)
+    t1, t2, t3 = tasks[0], tasks[1], tasks[2]
+    ids = [t1["id"], t2["id"], t3["id"]]
+
+    # 空更新集 → 400
+    resp = await client.post("/api/tasks/batch-update", json={"task_ids": ids}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 400
+
+    # 工程(5)无 task.assign 权限 → 403
+    resp = await client.post("/api/tasks/batch-update", json={
+        "task_ids": ids, "assignee_id": 5}, headers={"X-User-Id": "5"})
+    assert resp.status_code == 403
+
+    # PM 批量指派给 net01(5)
+    resp = await client.post("/api/tasks/batch-update", json={
+        "task_ids": ids, "assignee_id": 5}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["updated"] == 3 and body["failed"] == []
+    # 指派生效 + 被指派者收到通知
+    resp = await client.get(f"/api/tasks/{t1['id']}", headers={"X-User-Id": "5"})
+    assert resp.json()["assignee_id"] == 5
+    resp = await client.get("/api/notifications", headers={"X-User-Id": "5"})
+    data = resp.json()
+    items = data if isinstance(data, list) else data.get("items", [])
+    assert sum(1 for n in items if n["type"] == "task_assigned") >= 3
+
+    # 批量优先级 + 越界
+    resp = await client.post("/api/tasks/batch-update", json={
+        "task_ids": ids, "priority": 2}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 200 and resp.json()["updated"] == 3
+    resp = await client.post("/api/tasks/batch-update", json={
+        "task_ids": ids, "priority": 9}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 422
+
+    # 混入不存在 id → 部分成功，失败明细
+    resp = await client.post("/api/tasks/batch-update", json={
+        "task_ids": [ids[0], 99999], "priority": 4}, headers={"X-User-Id": "2"})
+    body = resp.json()
+    assert body["updated"] == 1
+    assert body["failed"] and body["failed"][0]["task_id"] == 99999

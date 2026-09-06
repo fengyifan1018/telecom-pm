@@ -100,3 +100,18 @@ export const NOTIF_META = {
   project_init_rejected: { color: 'var(--el-color-danger)', icon: 'CircleClose' },
   comment_mention: { color: 'var(--el-text-color-secondary)', icon: 'ChatDotRound' },
 }
+
+/** 用户按角色分组（指派人下拉用）：PM → 网络工程师 → 现场实施 → 采购 → 运营 → 销售 → 管理员 */
+export function groupUsersByRole(users) {
+  const order = ['pm', 'network_engineer', 'field_engineer', 'procurement', 'operations', 'sales', 'admin']
+  const groups = {}
+  for (const u of users || []) {
+    (groups[u.role] = groups[u.role] || []).push(u)
+  }
+  return Object.keys(groups)
+    .sort((a, b) => {
+      const ia = order.indexOf(a), ib = order.indexOf(b)
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
+    })
+    .map(role => ({ role, label: ROLE_MAP[role] || role, users: groups[role] }))
+}
