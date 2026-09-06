@@ -64,7 +64,7 @@ const escalationForm = ref({ severity: 'medium', description: '' })
 
 // 评论 @ 提及：输入 @ 弹出候选（过滤↑↓Enter/点击插入 @显示名前缀，与后端匹配规则一致）
 const commentInputRef = ref(null)
-const mention = ref({ open: false, query: '', start: -1, index: 0 })
+const mention = ref({ open: false, query: '', start: -1, index: 0, above: true })
 const mentionCandidates = computed(() => {
   const q = mention.value.query.toLowerCase()
   return users.value
@@ -87,7 +87,14 @@ function onCommentInput() {
   const pos = el?.selectionStart ?? newComment.value.length
   const m = newComment.value.slice(0, pos).match(/@([^\s@]*)$/)
   if (m) {
-    mention.value = { open: true, query: m[1], start: pos - m[1].length - 1, index: 0 }
+    // 上方空间不足（贴近抽屉可视区顶部）时翻转到下方弹出，避免被滚动区上缘裁切
+    const el2 = commentTextareaEl()
+    const body = el2?.closest('.el-drawer__body')
+    const box = el2?.closest('.comment-box')
+    const aboveOk = body && box
+      ? (box.getBoundingClientRect().top - body.getBoundingClientRect().top) > 300
+      : true
+    mention.value = { open: true, query: m[1], start: pos - m[1].length - 1, index: 0, above: aboveOk }
   } else {
     mention.value.open = false
   }
@@ -630,7 +637,8 @@ function close() {
             <EmptyState v-if="activityFeed.length === 0" text="暂无动态" :size="36" />
           </div>
           <div class="comment-box">
-            <div v-if="mention.open && mentionCandidates.length" class="mention-pop">
+            <div v-if="mention.open && mentionCandidates.length" class="mention-pop"
+                 :class="mention.above ? 'is-above' : 'is-below'">
               <div v-for="(u, i) in mentionCandidates" :key="u.id" class="mention-item"
                    :class="{ 'is-active': i === mention.index }"
                    @mousedown.prevent="pickMention(u)" @mousemove="mention.index = i">
@@ -798,15 +806,22 @@ function close() {
 }
 .mention-pop {
   position: absolute;
-  bottom: calc(100% + 6px);
   left: 0;
   z-index: 20;
   min-width: 240px;
+  max-height: 264px;
+  overflow-y: auto;
   background: var(--el-bg-color);
   border: 1px solid var(--el-border-color-light);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-pop);
   padding: 4px;
+}
+.mention-pop.is-above {
+  bottom: calc(100% + 6px);
+}
+.mention-pop.is-below {
+  top: calc(100% + 6px);
 }
 .mention-item {
   display: flex;
