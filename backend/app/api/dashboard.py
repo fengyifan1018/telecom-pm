@@ -5,6 +5,7 @@ from sqlalchemy import select, func, case, and_, or_, false
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_current_user
+from app.permissions import require_permission
 from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
@@ -41,7 +42,7 @@ async def overview(
 @router.get("/phase-stats")
 async def phase_stats(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("report.view")),
 ):
     """Per-phase task count grouped by status (for reports)."""
     result = await db.execute(
@@ -81,7 +82,7 @@ async def phase_stats(
 @router.get("/task-status-dist")
 async def task_status_dist(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("report.view")),
 ):
     """Task count grouped by status, for pie chart."""
     result = await db.execute(
@@ -93,7 +94,7 @@ async def task_status_dist(
 @router.get("/product-type-dist")
 async def product_type_dist(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("report.view")),
 ):
     """Project count grouped by product_type, for pie chart."""
     result = await db.execute(
@@ -105,7 +106,7 @@ async def product_type_dist(
 @router.get("/user-workload")
 async def user_workload(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("report.view")),
 ):
     """Active task count per user (for reports)."""
     result = await db.execute(
@@ -123,7 +124,7 @@ async def user_workload(
 @router.get("/delivery-cycle")
 async def delivery_cycle(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("report.view")),
 ):
     """Average actual dwell days per phase (tasks with both actual_start and actual_end)."""
     result = await db.execute(
@@ -150,7 +151,7 @@ async def delivery_cycle(
 @router.get("/return-rate")
 async def return_rate(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("report.view")),
 ):
     """Rework (rejection) rate per phase."""
     result = await db.execute(

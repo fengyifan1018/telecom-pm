@@ -820,3 +820,78 @@ async def test_precedes_relation_reschedules_conflict(client: AsyncClient, seede
     assert resp.json().get("rescheduled", 0) == 0
     resp = await client.get(f"/api/tasks/{c['id']}", headers=headers)
     assert resp.json()["planned_start"] == c_start
+
+
+@pytest.mark.asyncio
+async def test_permission_enforcement_consistency(client: AsyncClient, seeded_db, db):
+    from app.models.role_permission import RolePermission
+    from app.permissions import invalidate_perm_cache
+    from sqlalchemy import delete as sa_delete
+
+    async def revoke(key, role):
+        await db.execute(sa_delete(RolePermission).where(
+            RolePermission.permission_key == key, RolePermission.role == role))
+        await db.commit()
+        invalidate_perm_cache()
+
+    pid, tasks = await _make_inited_project(client, "权限一致性测试", pm_id=2, init_user=2)
+    t = tasks[0]
+
+    # ── 1. task.approve 走矩阵：取消 pm 的勾选 → pm 不能再审批（非审核人） ──
+    resp = await client.put(f"/api/tasks/{t['id']}/assign", json={
+        "assignee_id": 5, "reviewer_id": 3}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 200
+    resp = await client.put(f"/api/tasks/{t['id']}/submit", json={}, headers={"X-User-Id": "5"})
+    assert resp.status_code == 200
+    await revoke("task.approve", "pm")
+    resp = await client.put(f"/api/tasks/{t['id']}/approve", json={}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 403
+    # 审核人本人不受矩阵影响（关系检查）
+    resp = await client.put(f"/api/tasks/{t['id']}/approve", json={}, headers={"X-User-Id": "3"})
+    assert resp.status_code == 200
+
+    # ── 2. report.view 管报表接口：取消 operations → 403，其他角色仍可 ──
+    await revoke("report.view", "operations")
+    resp = await client.get("/api/dashboard/phase-stats", headers={"X-User-Id": "3"})
+    assert resp.status_code == 403
+    resp = await client.get("/api/dashboard/phase-stats", headers={"X-User-Id": "6"})
+    assert resp.status_code == 200
+
+    # ── 3. audit.view：pm 无 → 403；operations 有 → 200 ──
+    resp = await client.get("/api/audit?page_size=5", headers={"X-User-Id": "2"})
+    assert resp.status_code == 403
+    resp = await client.get("/api/audit?page_size=5", headers={"X-User-Id": "3"})
+    assert resp.status_code == 200
+
+    # ── 4. customer.manage：工程无 → 403；pm 有 → 可建可删 ──
+    resp = await client.post("/api/projects/customers", json={"name": "权限测试客户"}, headers={"X-User-Id": "5"})
+    assert resp.status_code == 403
+    resp = await client.post("/api/projects/customers", json={"name": "权限测试客户"}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 201
+    cid = resp.json()["id"]
+    resp = await client.delete(f"/api/projects/customers/{cid}", headers={"X-User-Id": "2"})
+    assert resp.status_code in (200, 204)
+
+    # ── 5. suspend/resume 合并：resume 走 project.suspend ──
+    resp = await client.post(f"/api/projects/{pid}/suspend", json={
+        "reason_category": "resource", "reason": "x"}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 200
+    resp = await client.post(f"/api/projects/{pid}/resume", json={}, headers={"X-User-Id": "5"})
+    assert resp.status_code == 403
+    resp = await client.post(f"/api/projects/{pid}/resume", json={}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 200
+
+    # ── 6. project.update：operations 无 → 403 ──
+    resp = await client.put(f"/api/projects/{pid}", json={"name": "改名测试"}, headers={"X-User-Id": "3"})
+    assert resp.status_code == 403
+    resp = await client.put(f"/api/projects/{pid}", json={"name": "改名测试"}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 200
+
+    # ── 7. task.update：销售对项目内非本人任务 → 403；被指派人改自己的 → 200 ──
+    t2 = tasks[1]
+    resp = await client.put(f"/api/tasks/{t2['id']}", json={"planned_end": "2026-12-31"}, headers={"X-User-Id": "1"})
+    assert resp.status_code == 403
+    resp = await client.put(f"/api/tasks/{t2['id']}/assign", json={"assignee_id": 5}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 200
+    resp = await client.put(f"/api/tasks/{t2['id']}", json={"priority": 2}, headers={"X-User-Id": "5"})
+    assert resp.status_code == 200

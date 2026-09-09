@@ -84,6 +84,9 @@ async def update_task(
     current_user: User = Depends(get_current_user),
 ):
     task = await _get_visible_task(db, task_id, current_user)
+    from app.permissions import user_has_permission
+    if task.assignee_id != current_user.id and not await user_has_permission(db, current_user, "task.update"):
+        raise HTTPException(status_code=403, detail="只有负责人或具备任务修改权限的角色可以编辑")
     old_end = task.planned_end
     # exclude_unset：允许把 auto_schedule 置为 False（exclude_none 会丢掉 False 值）
     for field, value in data.model_dump(exclude_unset=True).items():
@@ -236,8 +239,9 @@ async def approve_task(
     task = await db.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    if task.reviewer_id != current_user.id and current_user.role not in ("pm", "admin"):
-        raise HTTPException(status_code=403, detail="只有审核人或管理员可以审批")
+    from app.permissions import user_has_permission
+    if task.reviewer_id != current_user.id and not await user_has_permission(db, current_user, "task.approve"):
+        raise HTTPException(status_code=403, detail="只有审核人或具备审批权限的角色可以审批")
     engine = FlowEngine(db)
     try:
         task = await engine.transition_task(task, "approve", current_user.id, data.remark)
@@ -264,8 +268,9 @@ async def reject_task(
     task = await db.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    if task.reviewer_id != current_user.id and current_user.role not in ("pm", "admin"):
-        raise HTTPException(status_code=403, detail="只有审核人或管理员可以退回")
+    from app.permissions import user_has_permission
+    if task.reviewer_id != current_user.id and not await user_has_permission(db, current_user, "task.approve"):
+        raise HTTPException(status_code=403, detail="只有审核人或具备审批权限的角色可以退回")
     if not data.remark:
         raise HTTPException(status_code=400, detail="Remark is required when rejecting")
     engine = FlowEngine(db)

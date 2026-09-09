@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db, get_current_user
 from app.models.user import User
 from app.models.user_group import UserGroup, UserGroupMember
-from app.permissions import require_permission
+from app.permissions import require_permission, require_roles
 
 router = APIRouter(prefix="/api/groups", tags=["groups"])
 
@@ -59,7 +59,7 @@ async def list_groups(
 async def create_group(
     data: GroupCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("group.manage")),
+    current_user: User = Depends(require_roles("admin")),
 ):
     existing = await db.execute(select(UserGroup).where(UserGroup.name == data.name))
     if existing.scalar_one_or_none():
@@ -76,7 +76,7 @@ async def update_group(
     group_id: int,
     data: GroupUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("group.manage")),
+    current_user: User = Depends(require_roles("admin")),
 ):
     group = await db.get(UserGroup, group_id)
     if not group:
@@ -94,7 +94,7 @@ async def update_group(
 async def delete_group(
     group_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("group.manage")),
+    current_user: User = Depends(require_roles("admin")),
 ):
     group = await db.get(UserGroup, group_id)
     if not group:
@@ -130,7 +130,7 @@ async def add_member(
     group_id: int,
     data: MemberAdd,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("group.manage")),
+    current_user: User = Depends(require_roles("admin")),
 ):
     group = await db.get(UserGroup, group_id)
     if not group:
@@ -156,7 +156,7 @@ async def remove_member(
     group_id: int,
     user_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("group.manage")),
+    current_user: User = Depends(require_roles("admin")),
 ):
     result = await db.execute(
         select(UserGroupMember).where(

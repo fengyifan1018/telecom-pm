@@ -28,16 +28,21 @@ def require_permission(perm_key: str):
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ) -> User:
-        if perm_key not in _perm_cache:
-            from app.models.role_permission import RolePermission
-            result = await db.execute(
-                select(RolePermission.role).where(RolePermission.permission_key == perm_key)
-            )
-            _perm_cache[perm_key] = {r for (r,) in result.all()}
-        if current_user.role not in _perm_cache[perm_key]:
+        if not await user_has_permission(db, current_user, perm_key):
             raise HTTPException(status_code=403, detail="权限不足")
         return current_user
     return checker
+
+
+async def user_has_permission(db: AsyncSession, user: User, perm_key: str) -> bool:
+    """非依赖注入场景的矩阵检查（端点内联使用），与 require_permission 同缓存。"""
+    if perm_key not in _perm_cache:
+        from app.models.role_permission import RolePermission
+        result = await db.execute(
+            select(RolePermission.role).where(RolePermission.permission_key == perm_key)
+        )
+        _perm_cache[perm_key] = {r for (r,) in result.all()}
+    return user.role in _perm_cache[perm_key]
 
 
 def require_admin():

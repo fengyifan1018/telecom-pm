@@ -5,7 +5,7 @@ from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_current_user
-from app.permissions import require_roles, require_permission
+from app.permissions import require_roles, require_permission, user_has_permission as _user_can
 from app.models.project import Project, Customer
 from app.models.task import Task, TaskTransition
 from app.models.escalation import TaskEscalation
@@ -121,7 +121,7 @@ async def list_customers(
 async def create_customer(
     data: CustomerCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("project.create")),
+    current_user: User = Depends(require_permission("customer.manage")),
 ):
     customer = await project_service.create_customer(db, data.name, data.contact_name, data.contact_phone)
     await db.commit()
@@ -134,7 +134,7 @@ async def update_customer(
     customer_id: int,
     data: CustomerUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("project.create")),
+    current_user: User = Depends(require_permission("customer.manage")),
 ):
     customer = await db.get(Customer, customer_id)
     if not customer:
@@ -150,7 +150,7 @@ async def update_customer(
 async def delete_customer(
     customer_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("project.delete")),
+    current_user: User = Depends(require_permission("customer.manage")),
 ):
     customer = await db.get(Customer, customer_id)
     if not customer:
@@ -216,7 +216,7 @@ async def update_project(
         forbidden = set(update_data.keys()) - SALES_ALLOWED
         if forbidden:
             raise HTTPException(status_code=403, detail=f"销售不能修改以下字段: {', '.join(forbidden)}")
-    elif current_user.role not in ("pm", "admin"):
+    elif not await _user_can(db, current_user, "project.update"):
         raise HTTPException(status_code=403, detail="权限不足")
     else:
         _assert_pm_access(project, current_user)
@@ -492,7 +492,7 @@ async def resume_project(
     project_id: int,
     data: ResumeRequest = ResumeRequest(),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("project.resume")),
+    current_user: User = Depends(require_permission("project.suspend")),
 ):
     project = await db.get(Project, project_id)
     if not project:

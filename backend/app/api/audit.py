@@ -22,7 +22,7 @@ async def list_audit_logs(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("permission.manage")),
+    current_user: User = Depends(require_permission("audit.view")),
 ):
     query = select(AuditLog).order_by(AuditLog.created_at.desc())
     count_query = select(func.count()).select_from(AuditLog)
