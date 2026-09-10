@@ -11,6 +11,7 @@ from app.models.task import Task
 from app.models.user import User
 from app.models.task import TaskTransition
 from app.models.escalation import TaskEscalation
+from app.models.metric_snapshot import MetricSnapshot
 from app.permissions import require_roles
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
@@ -372,8 +373,30 @@ async def workbench(
         for tr, title, operator in act_rows
     ]
 
+    # 趋势：全局视图对比 7 天前最近一次快照
+    trends = None
+    if effective == "all":
+        from datetime import timedelta as _td
+        base = (await db.execute(
+            select(MetricSnapshot)
+            .where(MetricSnapshot.date <= today - _td(days=7))
+            .order_by(MetricSnapshot.date.desc())
+            .limit(1)
+        )).scalar_one_or_none()
+        if base:
+            trends = {
+                "projects_total": project_total - base.projects_total,
+                "projects_active": project_active - base.projects_active,
+                "projects_completed": project_completed - base.projects_completed,
+                "tasks_total": task_total - base.tasks_total,
+                "tasks_done": task_done - base.tasks_done,
+                "task_overdue": task_overdue - base.tasks_overdue,
+                "since": base.date.isoformat(),
+            }
+
     return {
         "scope": effective,
+        "trends": trends,
         "stats": {
             "project_total": project_total,
             "project_active": project_active,

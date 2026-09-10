@@ -895,3 +895,42 @@ async def test_permission_enforcement_consistency(client: AsyncClient, seeded_db
     assert resp.status_code == 200
     resp = await client.put(f"/api/tasks/{t2['id']}", json={"priority": 2}, headers={"X-User-Id": "5"})
     assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_metric_snapshot_trend(client: AsyncClient, seeded_db, db):
+    from datetime import date, timedelta
+    from sqlalchemy import select
+    from app.models.metric_snapshot import MetricSnapshot
+    from app.services.scheduler import snapshot_metrics
+
+    pid, tasks = await _make_inited_project(client, "趋势快照测试", pm_id=2, init_user=2)
+
+    # 手工插入 7 天前的历史快照（趋势基线）
+    db.add(MetricSnapshot(
+        date=date.today() - timedelta(days=7),
+        projects_total=5, projects_active=2, projects_completed=1,
+        tasks_total=20, tasks_done=3, tasks_overdue=0,
+    ))
+    await db.commit()
+
+    # 快照任务：写入当日全局指标（幂等）
+    n = await snapshot_metrics(db)
+    assert n >= 1
+    snap = (await db.execute(
+        select(MetricSnapshot).where(MetricSnapshot.date == date.today())
+    )).scalar_one()
+    assert snap.tasks_total >= 20
+    assert snap.projects_total >= 1
+
+    # 工作台全局视图返回 trends（与 7 天前基线的差值）
+    resp = await client.get("/api/dashboard/workbench?scope=all", headers={"X-User-Id": "2"})
+    assert resp.status_code == 200
+    body = resp.json()
+    tr = body["trends"]
+    assert tr["projects_total"] == snap.projects_total - 5
+    assert tr["tasks_total"] == snap.tasks_total - 20
+    assert tr["task_overdue"] == snap.tasks_overdue - 0
+    # mine 视图不带趋势（快照为全局口径）
+    resp = await client.get("/api/dashboard/workbench", headers={"X-User-Id": "5"})
+    assert "trends" not in resp.json() or resp.json()["trends"] is None

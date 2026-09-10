@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base, async_session
 from app.models import *  # noqa: ensure all models are registered
 from app.api.router import api_router
-from app.services.scheduler import check_overdue_tasks
+from app.services.scheduler import check_overdue_tasks, snapshot_metrics_job
 
 logging.basicConfig(level=logging.INFO)
 scheduler = AsyncIOScheduler()
@@ -22,6 +22,9 @@ async def lifespan(app: FastAPI):
     async with async_session() as db:
         await seed_default_permissions(db)
     scheduler.add_job(check_overdue_tasks, "interval", hours=1, id="overdue_check")
+    scheduler.add_job(snapshot_metrics_job, "cron", hour=0, minute=10, id="metric_snapshot")
+    # 启动补拍当日快照（幂等，缺失才写）
+    await snapshot_metrics_job()
     scheduler.start()
     yield
     scheduler.shutdown(wait=False)

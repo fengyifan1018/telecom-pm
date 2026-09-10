@@ -12,6 +12,7 @@ from app.models.phase_deliverable import PhaseDeliverable
 from app.models.user_group import UserGroup, UserGroupMember
 from app.models.role_permission import RolePermission
 from app.models.audit_log import AuditLog
+from app.models.metric_snapshot import MetricSnapshot
 
 __all__ = [
     "User",
@@ -33,4 +34,5 @@ __all__ = [
     "UserGroupMember",
     "RolePermission",
     "AuditLog",
+    "MetricSnapshot",
 ]

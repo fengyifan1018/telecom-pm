@@ -38,14 +38,23 @@ const dateLine = computed(() => {
 const stats = computed(() => wb.value?.stats || {})
 const health = computed(() => wb.value?.project_health || {})
 
+const trends = computed(() => wb.value?.trends)
+const trendSince = computed(() => (trends.value?.since ? `较 ${trends.value.since}` : ''))
 const statCards = computed(() => wb.value ? [
-  { label: '项目总数', value: stats.value.project_total, icon: Suitcase, color: 'var(--el-color-primary)' },
-  { label: '进行中项目', value: stats.value.project_active, icon: FolderOpened, color: 'var(--el-color-warning)' },
-  { label: '已完成项目', value: stats.value.project_completed, icon: CircleCheck, color: 'var(--el-color-success)' },
-  { label: '总任务数', value: stats.value.task_total, icon: List, color: 'var(--el-color-info)' },
+  { label: '项目总数', value: stats.value.project_total, icon: Suitcase, color: 'var(--el-color-primary)', trend: trends.value?.projects_total },
+  { label: '进行中项目', value: stats.value.project_active, icon: FolderOpened, color: 'var(--el-color-warning)', trend: trends.value?.projects_active },
+  { label: '已完成项目', value: stats.value.project_completed, icon: CircleCheck, color: 'var(--el-color-success)', trend: trends.value?.projects_completed },
+  { label: '总任务数', value: stats.value.task_total, icon: List, color: 'var(--el-color-info)', trend: trends.value?.tasks_total },
   { label: '任务完成率', value: stats.value.completion_pct + '%', icon: DataAnalysis, color: 'var(--el-color-primary)' },
-  { label: '延期任务', value: stats.value.task_overdue, icon: AlarmClock, color: 'var(--el-color-danger)' },
+  { label: '延期任务', value: stats.value.task_overdue, icon: AlarmClock, color: 'var(--el-color-danger)', trend: trends.value?.task_overdue, invert: true },
 ] : [])
+// 趋势着色：默认上升=好（绿）；invert 项（延期）上升=坏（红）
+function trendClass(c) {
+  if (!c.trend) return ''
+  const up = c.trend > 0
+  const good = c.invert ? !up : up
+  return good ? 'is-good' : 'is-bad'
+}
 
 async function load() {
   loading.value = true
@@ -133,7 +142,12 @@ const severityLabel = (s) => ({ low: '低', medium: '中', high: '高', critical
             <el-icon :size="20" color="#fff"><component :is="c.icon" /></el-icon>
           </div>
           <div>
-            <div class="wb-stat__num num">{{ c.value }}</div>
+            <div style="display: flex; align-items: baseline">
+              <div class="wb-stat__num num">{{ c.value }}</div>
+              <span v-if="c.trend" class="wb-trend" :class="trendClass(c)" :title="trendSince">
+                {{ c.trend > 0 ? '↑' : '↓' }}{{ Math.abs(c.trend) }}
+              </span>
+            </div>
             <div class="wb-stat__label">{{ c.label }}</div>
           </div>
         </div>
@@ -287,6 +301,14 @@ const severityLabel = (s) => ({ low: '低', medium: '中', high: '高', critical
   gap: 12px;
 }
 .wb-stat__num { font-size: 28px; font-weight: bold; font-variant-numeric: tabular-nums; }
+.wb-trend {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.wb-trend.is-good { color: var(--el-color-success); }
+.wb-trend.is-bad { color: var(--el-color-danger); }
 .wb-stat__label { font-size: 13px; color: var(--el-text-color-secondary); margin-top: 2px; }
 .ring-center {
   position: absolute;

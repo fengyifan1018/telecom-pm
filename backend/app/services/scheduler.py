@@ -2,7 +2,7 @@
 import logging
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import async_session
@@ -160,3 +160,49 @@ async def check_overdue_tasks() -> None:
         if notified:
             await db.commit()
         logger.info(f"[scheduler] overdue check: {notified} notifications sent")
+
+
+async def snapshot_metrics(db: AsyncSession) -> int:
+    """写入当日全局指标快照（已存在则跳过）。返回 1=新建，0=已存在。"""
+    from app.models.metric_snapshot import MetricSnapshot
+
+    today = date.today()
+    existing = await db.execute(
+        select(MetricSnapshot).where(MetricSnapshot.date == today)
+    )
+    if existing.scalar_one_or_none():
+        return 0
+
+    p_total, p_active, p_done = 0, 0, 0
+    rows = await db.execute(
+        select(Project.status, func.count()).group_by(Project.status)
+    )
+    for st, c in rows.all():
+        p_total += c
+        if st == "active":
+            p_active = c
+        elif st == "completed":
+            p_done = c
+
+    t_total, t_done, t_overdue = 0, 0, 0
+    rows = await db.execute(select(Task.status, func.count()).group_by(Task.status))
+    overdue_cond = and_(Task.planned_end < today, Task.status.notin_(["done", "cancelled"]))
+    t_overdue = (await db.execute(select(func.count()).where(overdue_cond))).scalar() or 0
+    for st, c in rows.all():
+        t_total += c
+        if st == "done":
+            t_done = c
+
+    db.add(MetricSnapshot(
+        date=today,
+        projects_total=p_total, projects_active=p_active, projects_completed=p_done,
+        tasks_total=t_total, tasks_done=t_done, tasks_overdue=t_overdue,
+    ))
+    await db.commit()
+    return 1
+
+
+async def snapshot_metrics_job() -> None:
+    """定时任务入口：自建会话调用 snapshot_metrics。"""
+    async with async_session() as db:
+        await snapshot_metrics(db)
