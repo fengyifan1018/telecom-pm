@@ -692,7 +692,7 @@ async function handleRejectCR() {
             </div>
           </el-tab-pane>
           <el-tab-pane label="甘特图" name="gantt">
-            <GanttChart :tasks="tasks" />
+            <GanttChart :tasks="tasks" @refresh="onRefresh" />
           </el-tab-pane>
           <el-tab-pane label="变更申请" name="cr">
             <div style="display: flex; justify-content: flex-end; margin-bottom: 12px">

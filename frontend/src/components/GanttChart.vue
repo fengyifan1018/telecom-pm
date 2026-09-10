@@ -1,10 +1,21 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
 import { STATUS_MAP } from '../utils/constants'
+import { updateTask } from '../api/tasks'
+import { useAuthStore } from '../stores/auth'
+import { ElMessage } from 'element-plus'
 
 const props = defineProps({
   tasks: { type: Array, default: () => [] },
 })
+const emit = defineEmits(['refresh'])
+const auth = useAuthStore()
+
+// 拖拽改排期权限：PM/管理员或负责人本人；done/cancelled 不可拖
+function canDrag(t) {
+  if (!t.hasBar || ['done', 'cancelled'].includes(t.status)) return false
+  return ['pm', 'admin'].includes(auth.user?.role) || t.assignee_id === auth.user?.id
+}
 
 const PX_PER_DAY = 28
 
@@ -103,6 +114,88 @@ const chartData = computed(() => {
 
   return { rows, totalWidth, days, monthGroups, todayLeft }
 })
+
+// ── 拖拽调整排期（move 整体平移 / resize-start/end 两端缩放，按天吸附） ──
+const drag = reactive({ taskId: null, mode: null, startX: 0, origLeft: 0, origWidth: 0, dx: 0 })
+const dragDays = computed(() => Math.round(drag.dx / PX_PER_DAY))
+
+function addDays(dt, n) {
+  const x = new Date(dt)
+  x.setDate(x.getDate() + n)
+  return x
+}
+function fmtDate(dt) {
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+}
+
+function barStyle(t) {
+  if (drag.taskId !== t.id) return { left: t.left + 'px', width: t.width + 'px', background: t.color }
+  let left = drag.origLeft
+  let width = drag.origWidth
+  const d = dragDays.value
+  if (drag.mode === 'move') left += d * PX_PER_DAY
+  else if (drag.mode === 'resize-end') width = Math.max(drag.origWidth + d * PX_PER_DAY, PX_PER_DAY)
+  else if (drag.mode === 'resize-start') {
+    width = Math.max(drag.origWidth - d * PX_PER_DAY, PX_PER_DAY)
+    left += drag.origWidth - width
+  }
+  return { left: left + 'px', width: width + 'px', background: t.color }
+}
+
+function barTitle(t) {
+  if (drag.taskId !== t.id) return `${t.planned_start} ~ ${t.planned_end}`
+  const s = parseDate(t.planned_start)
+  const e = parseDate(t.planned_end)
+  const d = dragDays.value
+  let ns = s, ne = e
+  if (drag.mode === 'move') { ns = addDays(s, d); ne = addDays(e, d) }
+  else if (drag.mode === 'resize-end') ne = addDays(e, d)
+  else if (drag.mode === 'resize-start') ns = addDays(s, d)
+  if (ns > ne) [ns, ne] = [ne, ns]
+  return `${fmtDate(ns)} ~ ${fmtDate(ne)}（松开保存）`
+}
+
+function onBarDown(e, t, mode) {
+  if (!canDrag(t)) return
+  e.preventDefault()
+  drag.taskId = t.id
+  drag.mode = mode
+  drag.startX = e.clientX
+  drag.origLeft = t.left
+  drag.origWidth = t.width
+  drag.dx = 0
+  window.addEventListener('mousemove', onDragMove)
+  window.addEventListener('mouseup', onDragUp)
+}
+function onDragMove(e) {
+  drag.dx = e.clientX - drag.startX
+}
+async function onDragUp() {
+  window.removeEventListener('mousemove', onDragMove)
+  window.removeEventListener('mouseup', onDragUp)
+  const t = props.tasks.find(x => x.id === drag.taskId)
+  const mode = drag.mode
+  const d = dragDays.value
+  drag.taskId = null
+  drag.dx = 0
+  if (!t || !d) return
+  const s = parseDate(t.planned_start)
+  const e = parseDate(t.planned_end)
+  let ns = s, ne = e
+  if (mode === 'move') { ns = addDays(s, d); ne = addDays(e, d) }
+  else if (mode === 'resize-end') ne = addDays(e, d)
+  else if (mode === 'resize-start') ns = addDays(s, d)
+  if (ne < ns) ne = ns
+  try {
+    const res = await updateTask(t.id, { planned_start: fmtDate(ns), planned_end: fmtDate(ne) })
+    const n = res.data?.rescheduled || 0
+    ElMessage.success(n > 0 ? `排期已更新，联动顺延 ${n} 个后续任务` : '排期已更新')
+    emit('refresh')
+  } catch {
+    // 错误提示由全局拦截器统一处理；组件由父级刷新还原
+    emit('refresh')
+  }
+}
 </script>
 
 <template>
@@ -186,10 +279,14 @@ const chartData = computed(() => {
           <div
             v-if="t.hasBar"
             class="gantt-bar"
-            :style="{ left: t.left + 'px', width: t.width + 'px', background: t.color }"
-            :title="`${t.planned_start} ~ ${t.planned_end}`"
+            :class="{ draggable: canDrag(t), dragging: drag.taskId === t.id }"
+            :style="barStyle(t)"
+            :title="barTitle(t)"
+            @mousedown="onBarDown($event, t, 'move')"
           >
+            <span v-if="canDrag(t)" class="bar-handle is-left" @mousedown.stop="onBarDown($event, t, 'resize-start')" />
             <span class="bar-dates">{{ t.planned_start }} ~ {{ t.planned_end }}</span>
+            <span v-if="canDrag(t)" class="bar-handle is-right" @mousedown.stop="onBarDown($event, t, 'resize-end')" />
           </div>
 
           <span v-else class="no-date">未设置排期</span>
@@ -397,6 +494,18 @@ const chartData = computed(() => {
   z-index: 1;
 }
 
+.gantt-bar.draggable { cursor: grab; }
+.gantt-bar.dragging { cursor: grabbing; opacity: 0.85; z-index: 3; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
+.bar-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+}
+.bar-handle.is-left { left: 0; border-radius: 10px 0 0 10px; }
+.bar-handle.is-right { right: 0; border-radius: 0 10px 10px 0; }
+.bar-handle:hover { background: rgba(255, 255, 255, 0.25); }
 .bar-dates {
   padding: 0 8px;
   font-size: 10px;
