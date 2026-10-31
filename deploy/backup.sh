@@ -19,11 +19,11 @@ PYEOF
 docker compose cp backend:/tmp/telecom_$STAMP.db "$DIR/telecom_$STAMP.db"
 docker compose exec -T backend rm /tmp/telecom_$STAMP.db
 
-echo "[backup] uploads..."
-docker compose exec -T backend mkdir -p /app/data/uploads
-if docker compose exec -T backend sh -c 'ls -A /app/data/uploads | grep -q .'; then
-  docker compose cp backend:/app/data/uploads "$DIR/uploads_$STAMP"
-  tar -czf "$DIR/uploads_$STAMP.tar.gz" -C "$DIR" "uploads_$STAMP" && rm -rf "$DIR/uploads_$STAMP"
+echo "[backup] uploads（宿主机挂载目录直接打包）..."
+mkdir -p data/uploads
+if [ -n "$(ls -A data/uploads 2>/dev/null)" ]; then
+  tar -czf "$DIR/uploads_$STAMP.tar.gz" -C data uploads
+  echo "[backup] uploads 已打包"
 else
   echo "[backup] uploads 为空，跳过"
 fi
