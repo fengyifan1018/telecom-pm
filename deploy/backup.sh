@@ -20,8 +20,13 @@ docker compose cp backend:/tmp/telecom_$STAMP.db "$DIR/telecom_$STAMP.db"
 docker compose exec -T backend rm /tmp/telecom_$STAMP.db
 
 echo "[backup] uploads..."
-docker compose cp backend:/app/data/uploads "$DIR/uploads_$STAMP"
-tar -czf "$DIR/uploads_$STAMP.tar.gz" -C "$DIR" "uploads_$STAMP" && rm -rf "$DIR/uploads_$STAMP"
+docker compose exec -T backend mkdir -p /app/data/uploads
+if docker compose exec -T backend sh -c 'ls -A /app/data/uploads | grep -q .'; then
+  docker compose cp backend:/app/data/uploads "$DIR/uploads_$STAMP"
+  tar -czf "$DIR/uploads_$STAMP.tar.gz" -C "$DIR" "uploads_$STAMP" && rm -rf "$DIR/uploads_$STAMP"
+else
+  echo "[backup] uploads 为空，跳过"
+fi
 
 echo "[backup] prune old (keep $KEEP)..."
 ls -1t "$DIR"/telecom_*.db 2>/dev/null | tail -n +$((KEEP + 1)) | xargs -r rm -f
