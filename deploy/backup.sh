@@ -20,8 +20,8 @@ docker compose cp backend:/tmp/telecom_$STAMP.db "$DIR/telecom_$STAMP.db"
 docker compose exec -T backend rm /tmp/telecom_$STAMP.db
 
 echo "[backup] uploads（宿主机挂载目录直接打包）..."
-mkdir -p data/uploads
-if [ -n "$(ls -A data/uploads 2>/dev/null)" ]; then
+mkdir -p data/uploads 2>/dev/null || true
+if [ -d data/uploads ] && [ -n "$(ls -A data/uploads 2>/dev/null)" ]; then
   tar -czf "$DIR/uploads_$STAMP.tar.gz" -C data uploads
   echo "[backup] uploads 已打包"
 else
