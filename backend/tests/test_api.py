@@ -934,3 +934,25 @@ async def test_metric_snapshot_trend(client: AsyncClient, seeded_db, db):
     # mine 视图不带趋势（快照为全局口径）
     resp = await client.get("/api/dashboard/workbench", headers={"X-User-Id": "5"})
     assert "trends" not in resp.json() or resp.json()["trends"] is None
+
+
+@pytest.mark.asyncio
+async def test_secret_key_production_guard():
+    """生产模式（DEBUG=false）下弱 SECRET_KEY 拒绝启动；DEBUG=true 豁免。"""
+    from pydantic_settings import BaseSettings  # noqa: F401  环境隔离说明见下
+    from app.config import Settings
+    from app.config import ensure_secret_key
+
+    weak = Settings(SECRET_KEY="dev-secret-key-change-in-production", DEBUG=False)
+    with pytest.raises(RuntimeError):
+        ensure_secret_key(weak)
+
+    short = Settings(SECRET_KEY="abc", DEBUG=False)
+    with pytest.raises(RuntimeError):
+        ensure_secret_key(short)
+
+    ok = Settings(SECRET_KEY="x" * 48, DEBUG=False)
+    ensure_secret_key(ok)  # 不抛
+
+    dev = Settings(SECRET_KEY="dev-secret-key-change-in-production", DEBUG=True)
+    ensure_secret_key(dev)  # 开发模式豁免

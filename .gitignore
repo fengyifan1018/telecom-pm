@@ -27,6 +27,8 @@ Thumbs.db
 
 # Env
 .env
+backups/
+data/
 .env.local
 
 # Claude

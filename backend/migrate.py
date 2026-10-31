@@ -4,7 +4,14 @@ Safe to run multiple times (checks before adding).
 """
 import sqlite3
 
-DB_PATH = "./data.db"
+import os
+
+# 兼容部署：优先从 DATABASE_URL 解析 SQLite 路径（支持相对/绝对），缺省 ./data.db
+_db_url = os.environ.get("DATABASE_URL", "")
+if _db_url.startswith("sqlite"):
+    DB_PATH = _db_url.split("///", 1)[-1] or "./data.db"
+else:
+    DB_PATH = "./data.db"
 
 MIGRATIONS = [
     # (table, column, definition)
