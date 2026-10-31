@@ -1,6 +1,9 @@
 services:
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        BASE_IMAGE: ${BASE_IMAGE:-python:3.12-slim}
     container_name: telecom-backend
     env_file: .env
     volumes:
@@ -10,7 +13,11 @@ services:
     restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        BASE_NODE_IMAGE: ${BASE_NODE_IMAGE:-node:20-alpine}
+        BASE_NGINX_IMAGE: ${BASE_NGINX_IMAGE:-nginx:alpine}
     container_name: telecom-frontend
     ports:
       - "${APP_PORT:-8080}:80"

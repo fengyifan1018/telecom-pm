@@ -1,4 +1,6 @@
-FROM python:3.12-slim
+# 国内部署可经 .env 设 BASE_IMAGE=docker.m.daocloud.io/library/python:3.12-slim
+ARG BASE_IMAGE=python:3.12-slim
+FROM ${BASE_IMAGE}
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
