@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+echo "[entrypoint] ensuring tables..."
+python init_db.py
 echo "[entrypoint] running migrations..."
 python migrate.py
 

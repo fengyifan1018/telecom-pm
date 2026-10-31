@@ -17,7 +17,7 @@ COPY pyproject.toml ./
 COPY app ./app
 RUN pip install --no-cache-dir -e .
 
-COPY migrate.py ./
+COPY migrate.py init_db.py ./
 RUN mkdir -p /app/data/uploads
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
