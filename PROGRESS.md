@@ -325,7 +325,9 @@ npm run dev   # 默认 http://localhost:5173, proxy /api -> 8000
 24. **权限体系一致性重构** — 消除"矩阵说了不算"的双轨失控：①task.approve 接入矩阵（审核人本人检查保留，取消勾选即失效）②报表六接口接入 report.view（默认全角色=对齐 menu.reports，行为不变但可控）③审计改新权限 audit.view（默认 admin/ops，不再借用 permission.manage）④客户 CRUD 改 customer.manage（默认 admin/pm/sales，不再借用 project.create/delete）⑤suspend+resume 合并为 project.suspend"暂停/恢复项目" ⑥新增 project.update（默认 pm/admin）与 task.update（默认 pm/admin；负责人本人可改自己任务——堵住销售改非本人任务排期的口子）⑦死项清理：menu.groups/group.manage/project.resume 的 DEFS 与 DB 行；groups API 改 require_roles(admin)。新增 user_has_permission 助手（端点内联矩阵检查，同缓存）。权限页矩阵自动显示新项；33 个测试全过
 25. **趋势对比（每日快照机制）** — 新表 `metric_snapshots`（每日全局指标，date 唯一）；`snapshot_metrics(db)` 幂等写入 + `snapshot_metrics_job` 无参定时入口（cron 每日 00:10 + 启动补拍）；`/dashboard/workbench` 全局视图返回 `trends`（对比 ≤7 天前最近快照的六项差值 + since）；前端统计卡趋势角标（↑↓，绿=向好/红=变差，延期反向；完成率卡无趋势；无历史快照时不显示）
 26. **甘特图拖拽调排期** — 拖动条形整体平移、两端手柄缩放（按天吸附 28px/天，最短 1 天）；拖动中 title 实时预览新日期；松开调 updateTask（走排期联动顺推并 toast 顺延数）；权限：PM/管理员或负责人本人，done/cancelled 不可拖；父级接 @refresh 重载
-27. **遗留死表** — `task_dependencies` 已移除
+27. **Docker 部署套件** — docker-compose（backend+frontend 两服务，healthcheck 门控依赖）；backend python:3.12-slim + entrypoint（启动先跑幂等迁移再 uvicorn 单 worker，SQLite 串行写安全）；frontend 多阶段 node build → nginx:alpine（SPA try_files + /api 反代 + 25m 上传限）；.env.example（SECRET_KEY 必填、APP_PORT、TZ）；deploy/backup.sh（SQLite backup API 在线一致性备份 + uploads 打包 + 保留 N 份）；docs/部署指南.md（启动/初始化/备份恢复/升级/FAQ）
+28. **生产安全守卫** — config.ensure_secret_key：DEBUG=false 时弱/默认 SECRET_KEY 直接拒绝启动（本地开发 .env DEBUG=true 豁免）；migrate.py 改从 DATABASE_URL 解析库路径（容器内 /app/data/telecom.db）
+29. **遗留死表** — `task_dependencies` 已移除
 
 ## 当前已注册路由汇总（65+个端点）
 
