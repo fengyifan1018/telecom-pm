@@ -21,6 +21,7 @@ MIGRATIONS = [
     ("tasks", "progress",       "INTEGER NOT NULL DEFAULT 0"),
     ("projects", "init_submitted_by", "INTEGER"),
     ("projects", "init_reject_reason", "TEXT"),
+    ("projects", "template_id", "INTEGER"),
 ]
 
 

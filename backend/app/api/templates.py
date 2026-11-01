@@ -1,14 +1,17 @@
+import json
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_current_user
 from app.permissions import require_roles, require_permission
 from app.models.user import User
 from app.models.workflow_template import WorkflowTemplate
+from app.models.template_version import TemplateVersion
+from app.models.project import Project
 from app.schemas.template import TemplateResponse
 
 router = APIRouter(prefix="/api/templates", tags=["templates"])
@@ -90,7 +93,63 @@ async def list_templates(
     if not include_inactive:
         query = query.where(WorkflowTemplate.is_active == True)
     result = await db.execute(query.order_by(WorkflowTemplate.id))
-    return result.scalars().all()
+    templates = result.scalars().all()
+
+    # 使用统计：该模板立项且未取消的项目数（projects.template_id 由立项写入；历史项目回填按产品线匹配）
+    usage_rows = await db.execute(
+        select(Project.template_id, func.count())
+        .where(Project.status != "cancelled", Project.template_id.is_not(None))
+        .group_by(Project.template_id)
+    )
+    legacy_rows = await db.execute(
+        select(Project.product_type, func.count())
+        .where(Project.status != "cancelled", Project.template_id.is_(None))
+        .group_by(Project.product_type)
+    )
+    usage = {tid: c for tid, c in usage_rows.all()}
+    legacy = {pt: c for pt, c in legacy_rows.all()}
+    out = []
+    for t in templates:
+        d = TemplateResponse.model_validate(t).model_dump()
+        d["usage_count"] = usage.get(t.id, 0) + legacy.get(t.product_type, 0)
+        out.append(d)
+    return out
+
+
+@router.get("/{template_id}/versions")
+async def list_template_versions(
+    template_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("template.manage")),
+):
+    """历史版本列表（当前版本不在其中），新→旧。"""
+    rows = await db.execute(
+        select(TemplateVersion)
+        .where(TemplateVersion.template_id == template_id)
+        .order_by(TemplateVersion.version.desc())
+    )
+    return [
+        {"version": v.version, "name": v.name, "created_by": v.created_by, "created_at": v.created_at}
+        for v in rows.scalars().all()
+    ]
+
+
+@router.get("/{template_id}/versions/{version}")
+async def get_template_version(
+    template_id: int,
+    version: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("template.manage")),
+):
+    row = await db.execute(
+        select(TemplateVersion).where(
+            TemplateVersion.template_id == template_id, TemplateVersion.version == version
+        )
+    )
+    v = row.scalar_one_or_none()
+    if not v:
+        raise HTTPException(status_code=404, detail="Version not found")
+    return {"version": v.version, "name": v.name, "phases": json.loads(v.phases), "created_at": v.created_at}
 
 
 @router.get("/{template_id}", response_model=TemplateResponse)
@@ -139,6 +198,11 @@ async def update_template(
     update_data = data.model_dump(exclude_none=True)
     if "phases" in update_data:
         _validate_phases(update_data["phases"])
+        db.add(TemplateVersion(
+            template_id=template.id, version=template.version,
+            name=template.name, phases=json.dumps(template.phases, ensure_ascii=False),
+            created_by=current_user.id,
+        ))
         template.version += 1
     for field, value in update_data.items():
         setattr(template, field, value)

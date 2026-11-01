@@ -11,5 +11,6 @@ class TemplateResponse(BaseModel):
     is_active: bool
     phases: list
     created_at: datetime
+    usage_count: int = 0
 
     model_config = {"from_attributes": True}

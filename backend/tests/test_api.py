@@ -1034,3 +1034,56 @@ async def test_template_phase_validation_and_unique_active(client: AsyncClient, 
     assert resp.status_code == 200
     tasks = resp.json()
     assert len(tasks) == 26  # 第5步切回旧模板启用，立项应使用旧 DIA 模板（26 任务）
+
+
+@pytest.mark.asyncio
+async def test_template_versions_and_usage(client: AsyncClient, seeded_db, db):
+    from sqlalchemy import select
+    from app.models.user import User
+    from app.seed.seed_users import hash_password
+    tpl_admin = User(username="tpl_admin2", hashed_password=hash_password("123456"),
+                     display_name="模板管理员2", role="admin", is_active=True)
+    db.add(tpl_admin)
+    await db.commit()
+    await db.refresh(tpl_admin)
+    admin_h = {"X-User-Id": str(tpl_admin.id)}
+
+    v1_phases = [
+        {"phase": "p1", "name": "阶段一", "order": 1, "role": "pm", "depends_on": [], "estimated_days": 2,
+         "tasks": [{"title": "任务A", "required": True, "estimated_days": 1}]},
+    ]
+    resp = await client.post("/api/templates", json={
+        "name": "版本测试模板", "product_type": "transmission", "phases": v1_phases}, headers=admin_h)
+    assert resp.status_code == 201
+    tid = resp.json()["id"]
+
+    # update phases → version 2，v1 快照留存
+    v2_phases = [dict(v1_phases[0], tasks=[{"title": "任务A", "required": True, "estimated_days": 2},
+                                           {"title": "任务B", "required": True, "estimated_days": 1}])]
+    resp = await client.put(f"/api/templates/{tid}", json={"phases": v2_phases}, headers=admin_h)
+    assert resp.json()["version"] == 2
+
+    # 版本列表
+    resp = await client.get(f"/api/templates/{tid}/versions", headers=admin_h)
+    assert resp.status_code == 200
+    versions = resp.json()
+    assert [v["version"] for v in versions] == [1]  # 只有历史版本（当前版本不在列表）
+
+    # 查看 v1 快照内容
+    resp = await client.get(f"/api/templates/{tid}/versions/1", headers=admin_h)
+    assert resp.status_code == 200
+    v1 = resp.json()
+    assert len(v1["phases"][0]["tasks"]) == 1  # v1 只有任务A
+
+    # ── 使用统计：立项记录 template_id ──
+    for i in range(2):
+        resp = await client.post("/api/projects", json={
+            "name": f"使用统计项目{i}", "customer_id": 1, "product_type": "transmission", "pm_id": 2,
+        }, headers={"X-User-Id": "1"})
+        pid = resp.json()["id"]
+        resp = await client.post(f"/api/projects/{pid}/init", headers={"X-User-Id": "2"})
+        assert resp.status_code == 200
+
+    resp = await client.get("/api/templates", headers=admin_h)
+    tpl = next(t for t in resp.json() if t["id"] == tid)
+    assert tpl["usage_count"] == 2

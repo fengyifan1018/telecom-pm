@@ -43,3 +43,5 @@ class Project(Base):
     # 立项审核：提交人 / 最近驳回原因
     init_submitted_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))
     init_reject_reason: Mapped[Optional[str]] = mapped_column(Text)
+    # 立项时使用的模板（使用统计）
+    template_id: Mapped[Optional[int]] = mapped_column(ForeignKey("workflow_templates.id"))

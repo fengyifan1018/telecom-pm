@@ -70,5 +70,6 @@ async def generate_tasks_from_template(db: AsyncSession, project: Project) -> li
 
     project.status = "active"
     project.actual_start = date.today()
+    project.template_id = template.id  # 使用统计
 
     return tasks

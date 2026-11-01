@@ -13,6 +13,7 @@ from app.models.user_group import UserGroup, UserGroupMember
 from app.models.role_permission import RolePermission
 from app.models.audit_log import AuditLog
 from app.models.metric_snapshot import MetricSnapshot
+from app.models.template_version import TemplateVersion
 
 __all__ = [
     "User",
@@ -35,4 +36,5 @@ __all__ = [
     "RolePermission",
     "AuditLog",
     "MetricSnapshot",
+    "TemplateVersion",
 ]

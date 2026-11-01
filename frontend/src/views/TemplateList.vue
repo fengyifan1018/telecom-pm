@@ -1,10 +1,11 @@
 <script setup>
 import PageHeader from '../components/PageHeader.vue'
 import EmptyState from '../components/EmptyState.vue'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { PRODUCT_TYPE_MAP, PHASE_MAP } from '../utils/constants'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { formatDateTime } from '../utils/format'
 import http from '../api/index'
 
 const auth = useAuthStore()
@@ -19,6 +20,9 @@ const dialogTitle = ref('')
 const editingId = ref(null)
 const submitLoading = ref(false)
 const editorTab = ref('visual')
+watch(editorTab, (tab) => {
+  if (tab === 'json') { jsonDraft.value = JSON.stringify(editPhases.value, null, 2); jsonError.value = '' }
+})
 
 const formName = ref('')
 const formProductType = ref('dia')
@@ -50,6 +54,52 @@ const ROLE_COLOR = {
 }
 
 const jsonPreview = computed(() => JSON.stringify(editPhases.value, null, 2))
+// JSON 双向：文本编辑 → 解析回填编辑器（watch 在 editorTab 声明后注册）
+const jsonDraft = ref('')
+const jsonError = ref('')
+function applyJson() {
+  try {
+    const parsed = JSON.parse(jsonDraft.value)
+    if (!Array.isArray(parsed)) throw new Error('顶层必须是数组')
+    editPhases.value = parsed
+    editorTab.value = 'visual'
+    ElMessage.success('JSON 已应用，请检查后保存')
+  } catch (e) {
+    jsonError.value = '解析失败：' + e.message
+  }
+}
+
+// 版本历史
+const versionList = ref([])
+const versionDetail = ref(null)
+const versionLoading = ref(false)
+async function openVersions(t) {
+  editingId.value = t.id
+  dialogTitle.value = `历史版本：${t.name}`
+  editPhases.value = JSON.parse(JSON.stringify(t.phases))
+  formName.value = t.name
+  editorTab.value = 'versions'
+  versionDetail.value = null
+  versionLoading.value = true
+  showDialog.value = true
+  try {
+    const res = await http.get(`/templates/${t.id}/versions`)
+    versionList.value = res.data
+  } finally {
+    versionLoading.value = false
+  }
+}
+async function viewVersion(v) {
+  const res = await http.get(`/templates/${editingId.value}/versions/${v.version}`)
+  versionDetail.value = res.data
+}
+function loadVersionToEditor() {
+  if (!versionDetail.value) return
+  editPhases.value = JSON.parse(JSON.stringify(versionDetail.value.phases))
+  editorTab.value = 'visual'
+  ElMessage.success(`已载入 v${versionDetail.value.version} 内容，保存将生成新版本`)
+}
+
 // 新建时同产品线已有启用模板 → 保存将自动切换
 const productTypeConflict = computed(() =>
   !editingId.value && templates.value.some(t => t.product_type === formProductType.value && t.is_active))
@@ -226,13 +276,14 @@ async function toggleActive(t) {
                 <el-tag type="info" size="small">v{{ t.version }}</el-tag>
                 <el-tag :type="t.is_active ? 'success' : 'danger'" size="small">{{ t.is_active ? '启用中' : '已停用' }}</el-tag>
                 <span style="font-size: 12px; color: var(--el-text-color-secondary)">
-                  {{ t.phases.length }} 阶段 · {{ getTotalTasks(t) }} 任务 · 预估 {{ getTotalDays(t) }} 工作日
+                  {{ t.phases.length }} 阶段 · {{ getTotalTasks(t) }} 任务 · 预估 {{ getTotalDays(t) }} 工作日 · 被 {{ t.usage_count ?? 0 }} 个项目使用
                 </span>
               </el-space>
             </div>
             <div style="display: flex; align-items: center; gap: 8px">
               <template v-if="isAdmin">
                 <el-button size="small" text type="primary" @click.stop="openEdit(t)">编辑</el-button>
+                <el-button size="small" text @click.stop="openVersions(t)">历史</el-button>
                 <el-button size="small" text @click.stop="openCopy(t)">复制</el-button>
                 <el-button size="small" text :type="t.is_active ? 'danger' : 'success'" @click.stop="toggleActive(t)">
                   {{ t.is_active ? '停用' : '启用' }}
@@ -412,14 +463,51 @@ async function toggleActive(t) {
         </el-tab-pane>
 
         <!-- ===== JSON Preview Tab ===== -->
-        <el-tab-pane label="JSON 预览" name="json">
+        <el-tab-pane label="JSON 编辑" name="json">
+          <el-alert v-if="jsonError" type="error" :closable="false" show-icon :title="jsonError" style="margin-bottom: 8px" />
           <el-input
-            :value="jsonPreview"
+            v-model="jsonDraft"
             type="textarea"
-            :rows="22"
-            readonly
+            :rows="20"
+            spellcheck="false"
             style="font-family: monospace; font-size: 12px"
           />
+          <div style="margin-top: 8px; display: flex; gap: 8px">
+            <el-button type="primary" @click="applyJson">应用到编辑器</el-button>
+            <el-button @click="jsonDraft = JSON.stringify(editPhases.value, null, 2); jsonError = ''">重置为当前内容</el-button>
+          </div>
+        </el-tab-pane>
+        <el-tab-pane label="历史版本" name="versions">
+          <div v-if="versionLoading" style="padding: 20px; text-align: center">加载中...</div>
+          <template v-else>
+            <div v-if="versionList.length === 0" style="color: var(--el-text-color-secondary); font-size: 13px; padding: 12px 0">
+              暂无历史版本（每次修改任务结构会自动保存旧版本）
+            </div>
+            <el-table v-else :data="versionList" size="small" highlight-current-row @row-click="viewVersion" style="cursor: pointer">
+              <el-table-column prop="version" label="版本" width="80">
+                <template #default="{ row }">v{{ row.version }}</template>
+              </el-table-column>
+              <el-table-column prop="created_at" label="保存时间" width="170">
+                <template #default="{ row }">{{ formatDateTime(row.created_at, true) }}</template>
+              </el-table-column>
+              <el-table-column label="" width="110">
+                <template #default="{ row }">
+                  <el-button size="small" text type="primary" @click.stop="viewVersion(row)">查看</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <div v-if="versionDetail" style="margin-top: 12px">
+              <div class="section-label">v{{ versionDetail.version }} 内容（{{ versionDetail.phases.length }} 阶段）</div>
+              <el-input
+                :value="JSON.stringify(versionDetail.phases, null, 2)"
+                type="textarea" :rows="10" readonly
+                style="font-family: monospace; font-size: 12px"
+              />
+              <el-button type="primary" size="small" style="margin-top: 8px" @click="loadVersionToEditor">
+                载入编辑器（保存后生成新版本）
+              </el-button>
+            </div>
+          </template>
         </el-tab-pane>
       </el-tabs>
 
