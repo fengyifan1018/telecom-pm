@@ -328,7 +328,8 @@ npm run dev   # 默认 http://localhost:5173, proxy /api -> 8000
 27. **Docker 部署套件** — docker-compose（backend+frontend 两服务，healthcheck 门控依赖）；backend python:3.12-slim + entrypoint（启动先跑幂等迁移再 uvicorn 单 worker，SQLite 串行写安全）；frontend 多阶段 node build → nginx:alpine（SPA try_files + /api 反代 + 25m 上传限）；.env.example（SECRET_KEY 必填、APP_PORT、TZ）；deploy/backup.sh（SQLite backup API 在线一致性备份 + uploads 打包 + 保留 N 份）；docs/部署指南.md（启动/初始化/备份恢复/升级/FAQ）
 28. **生产安全守卫** — config.ensure_secret_key：DEBUG=false 时弱/默认 SECRET_KEY 直接拒绝启动（本地开发 .env DEBUG=true 豁免）；migrate.py 改从 DATABASE_URL 解析库路径（容器内 /app/data/telecom.db）
 29. **服务器 Docker 部署完成（10.1.99.77，powerisp）** — 全流程实测：git clone → .env 生成强密钥 → compose build（基础镜像复用服务器已有 python:3.11-slim/node:20-alpine，nginx:alpine 经 1ms.run 加速器补拉；全程未动系统 Docker 配置，biz-collab 等现有应用零影响）→ create_admin 建首个管理员 → 登录/前端/反代三层验证通过 → 备份脚本演练成功。过程修复：entrypoint 先 create_all 再 migrate（空库）、PyPI 清华源 build arg、frontend ARG 置顶、BASE_IMAGE 参数化、backup.sh 宿主侧打包与权限容错。**管理员密码在服务器 ~/telecom-admin-credentials.txt（600）**；demo 业务账号建议禁用
-30. **遗留死表** — `task_dependencies` 已移除
+30. **模板管理优化（P0×3 + 复制模板）** — ①depends_on 循环依赖校验（后端 create/update DFS 染色 400 + 前端 validate 同规则，此前环模板立项会 RecursionError 500）②同产品线唯一启用模板：create/启用时自动停用同产品线其他模板（"切换生效"语义，替代 scalar_one_or_none 多结果炸立项），立项查询加固 first ③服务端结构校验（phase/name/任务标题非空、key 唯一、depends_on 引用存在、天数≥1）④复制模板：卡片"复制"按钮一键克隆 26-35 任务（名称加"副本"），新建对话框同产品线冲突警示；已部署服务器更新。新增集成测试 6 场景，36 个测试全过
+31. **遗留死表** — `task_dependencies` 已移除
 
 ## 当前已注册路由汇总（65+个端点）
 

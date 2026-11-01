@@ -956,3 +956,81 @@ async def test_secret_key_production_guard():
 
     dev = Settings(SECRET_KEY="dev-secret-key-change-in-production", DEBUG=True)
     ensure_secret_key(dev)  # 开发模式豁免
+
+
+@pytest.mark.asyncio
+async def test_template_phase_validation_and_unique_active(client: AsyncClient, seeded_db, db):
+    admin_h = {"X-User-Id": "1"}
+
+    # seeded_db 只有 6 个业务用户（无 admin）→ 需要时临时插管理员
+    # 直接给 pm01 授权 template.manage 不可行（改矩阵影响其他用例）。
+    # 改用 X-User-Id 直通 + 权限放行：查 seeded 是否有 admin
+    resp = await client.get("/api/templates", headers=admin_h)
+    # 若 403 说明无 admin，则临时插 admin 用户
+    if resp.status_code == 403:
+        from app.models.user import User
+        from app.seed.seed_users import hash_password
+        tpl_admin = User(username="tpl_admin", hashed_password=hash_password("123456"),
+                         display_name="模板管理员", role="admin", is_active=True)
+        db.add(tpl_admin)
+        await db.commit()
+        await db.refresh(tpl_admin)
+        admin_h = {"X-User-Id": str(tpl_admin.id)}
+
+    good_phases = [
+        {"phase": "p1", "name": "阶段一", "order": 1, "role": "pm", "depends_on": [], "estimated_days": 2,
+         "tasks": [{"title": "任务A", "required": True, "estimated_days": 1}]},
+        {"phase": "p2", "name": "阶段二", "order": 2, "role": "pm", "depends_on": ["p1"], "estimated_days": 2,
+         "tasks": [{"title": "任务B", "required": True, "estimated_days": 1}]},
+    ]
+
+    # 1. 环依赖 → 400
+    cyclic = [
+        {"phase": "a", "name": "A", "order": 1, "role": "pm", "depends_on": ["b"], "estimated_days": 1,
+         "tasks": [{"title": "t", "required": True, "estimated_days": 1}]},
+        {"phase": "b", "name": "B", "order": 2, "role": "pm", "depends_on": ["a"], "estimated_days": 1,
+         "tasks": [{"title": "t", "required": True, "estimated_days": 1}]},
+    ]
+    resp = await client.post("/api/templates", json={
+        "name": "环模板", "product_type": "dia", "phases": cyclic}, headers=admin_h)
+    assert resp.status_code == 400
+    assert "循环" in resp.json()["detail"]
+
+    # 2. depends_on 引用不存在的 key → 400
+    bad_ref = [dict(good_phases[0], depends_on=["ghost"])]
+    resp = await client.post("/api/templates", json={
+        "name": "坏引用", "product_type": "dia", "phases": bad_ref}, headers=admin_h)
+    assert resp.status_code == 400
+
+    # 3. 任务空标题 → 400
+    empty_task = [dict(good_phases[0], tasks=[{"title": "", "required": True, "estimated_days": 1}])]
+    resp = await client.post("/api/templates", json={
+        "name": "空标题", "product_type": "dia", "phases": empty_task}, headers=admin_h)
+    assert resp.status_code == 400
+
+    # 4. 正常创建（dia 第二个启用模板）→ 自动停用 dia 原启用模板
+    resp = await client.post("/api/templates", json={
+        "name": "新DIA模板", "product_type": "dia", "phases": good_phases}, headers=admin_h)
+    assert resp.status_code == 201
+    new_id = resp.json()["id"]
+    resp = await client.get("/api/templates?include_inactive=true", headers=admin_h)
+    dia_active = [t for t in resp.json() if t["product_type"] == "dia" and t["is_active"]]
+    assert len(dia_active) == 1 and dia_active[0]["id"] == new_id
+
+    # 5. toggle 启用另一个 dia 模板 → 自动切换（唯一启用保持）
+    dia_all = [t for t in resp.json() if t["product_type"] == "dia"]
+    old_id = next(t["id"] for t in dia_all if t["id"] != new_id)
+    resp = await client.put(f"/api/templates/{old_id}", json={"is_active": True}, headers=admin_h)
+    assert resp.status_code == 200
+    resp = await client.get("/api/templates?include_inactive=true", headers=admin_h)
+    dia_active = [t for t in resp.json() if t["product_type"] == "dia" and t["is_active"]]
+    assert len(dia_active) == 1 and dia_active[0]["id"] == old_id
+
+    # 6. 立项在切换后使用当前启用模板（新模板任务数=2 阶段各1任务）
+    resp = await client.post("/api/projects", json={
+        "name": "切换模板立项", "customer_id": 1, "product_type": "dia", "pm_id": 2}, headers={"X-User-Id": "1"})
+    pid = resp.json()["id"]
+    resp = await client.post(f"/api/projects/{pid}/init", headers={"X-User-Id": "2"})
+    assert resp.status_code == 200
+    tasks = resp.json()
+    assert len(tasks) == 26  # 第5步切回旧模板启用，立项应使用旧 DIA 模板（26 任务）

@@ -15,7 +15,7 @@ async def generate_tasks_from_template(db: AsyncSession, project: Project) -> li
             WorkflowTemplate.is_active == True,
         )
     )
-    template = result.scalar_one_or_none()
+    template = result.scalars().first()
     if not template:
         raise ValueError(f"No active template for product type: {project.product_type}")
 

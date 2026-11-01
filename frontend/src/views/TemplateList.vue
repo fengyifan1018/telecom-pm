@@ -50,6 +50,9 @@ const ROLE_COLOR = {
 }
 
 const jsonPreview = computed(() => JSON.stringify(editPhases.value, null, 2))
+// 新建时同产品线已有启用模板 → 保存将自动切换
+const productTypeConflict = computed(() =>
+  !editingId.value && templates.value.some(t => t.product_type === formProductType.value && t.is_active))
 
 async function fetchTemplates() {
   loading.value = true
@@ -66,15 +69,25 @@ function getTotalTasks(t) { return t.phases.reduce((s, p) => s + (p.tasks?.lengt
 function getTotalDays(t) { return t.phases.reduce((s, p) => s + (p.estimated_days || 0), 0) }
 function toggleExpand(t) { expandedId.value = expandedId.value === t.id ? null : t.id }
 
-function openCreate() {
+function openCreate(fromTpl) {
   editingId.value = null
-  dialogTitle.value = '新建模板'
-  formName.value = ''
-  formProductType.value = 'dia'
-  editPhases.value = []
+  if (fromTpl) {
+    dialogTitle.value = '复制模板'
+    formName.value = fromTpl.name + ' 副本'
+    formProductType.value = fromTpl.product_type
+    editPhases.value = JSON.parse(JSON.stringify(fromTpl.phases))
+    ElMessage.info('已载入模板内容，可修改名称与细节后保存')
+  } else {
+    dialogTitle.value = '新建模板'
+    formName.value = ''
+    formProductType.value = 'dia'
+    editPhases.value = []
+  }
   editorTab.value = 'visual'
   showDialog.value = true
 }
+
+function openCopy(t) { openCreate(t) }
 
 function openEdit(t) {
   editingId.value = t.id
@@ -131,8 +144,31 @@ function validate() {
     if (!p.name?.trim()) { ElMessage.error(`第${i + 1}个阶段的名称不能为空`); return false }
     if (keys.has(p.phase)) { ElMessage.error(`阶段标识 "${p.phase}" 重复`); return false }
     keys.add(p.phase)
+    for (const dep of p.depends_on || []) {
+      if (!editPhases.value.some(x => x.phase === dep)) {
+        ElMessage.error(`阶段"${p.name}"的前置 "${dep}" 不存在`); return false
+      }
+    }
     for (const [j, task] of (p.tasks || []).entries()) {
       if (!task.title?.trim()) { ElMessage.error(`阶段"${p.name}"第${j + 1}个任务标题不能为空`); return false }
+    }
+  }
+  // 环检测（DFS 染色）
+  const color = {}
+  const byKey = Object.fromEntries(editPhases.value.map(p => [p.phase, p]))
+  let cycleAt = null
+  const dfs = (k) => {
+    color[k] = 1
+    for (const dep of byKey[k]?.depends_on || []) {
+      if (color[dep] === 1) { cycleAt = `${k} → ${dep}`; return false }
+      if (!color[dep] && !dfs(dep)) return false
+    }
+    color[k] = 2
+    return true
+  }
+  for (const k of keys) {
+    if (!color[k] && !dfs(k)) {
+      ElMessage.error(`前置阶段存在循环依赖：${cycleAt}`); return false
     }
   }
   return true
@@ -197,6 +233,7 @@ async function toggleActive(t) {
             <div style="display: flex; align-items: center; gap: 8px">
               <template v-if="isAdmin">
                 <el-button size="small" text type="primary" @click.stop="openEdit(t)">编辑</el-button>
+                <el-button size="small" text @click.stop="openCopy(t)">复制</el-button>
                 <el-button size="small" text :type="t.is_active ? 'danger' : 'success'" @click.stop="toggleActive(t)">
                   {{ t.is_active ? '停用' : '启用' }}
                 </el-button>
@@ -247,6 +284,9 @@ async function toggleActive(t) {
     >
       <!-- Basic Info -->
       <div class="editor-meta">
+        <el-alert v-if="!editingId && productTypeConflict" type="warning" :closable="false" show-icon
+                  style="margin-bottom: 12px"
+                  :title="`产品线「${PRODUCT_TYPE_MAP[formProductType]}」已有启用模板，保存后原模板将自动停用切换为本次新建`" />
         <el-form inline label-width="80px">
           <el-form-item label="模板名称" required>
             <el-input v-model="formName" placeholder="如: DIA专线标准流程v2" style="width: 260px" />
