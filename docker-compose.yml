@@ -12,6 +12,16 @@ services:
       - "8000"
     restart: unless-stopped
 
+  wecom:
+    build: ./backend
+    container_name: telecom-wecom
+    env_file: .env
+    command: ["python", "-m", "app.wecom_client"]
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    profiles: ["wecom"]
+
   frontend:
     build:
       context: ./frontend

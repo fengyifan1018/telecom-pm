@@ -1087,3 +1087,56 @@ async def test_template_versions_and_usage(client: AsyncClient, seeded_db, db):
     resp = await client.get("/api/templates", headers=admin_h)
     tpl = next(t for t in resp.json() if t["id"] == tid)
     assert tpl["usage_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_wecom_push_outbox(client: AsyncClient, seeded_db, db, monkeypatch):
+    """企微智能机器人 outbox：指派产生待推通知 → 长连接 sender 推送 → 状态流转。"""
+    from app.models.user import User
+    from app.services import wecom_service
+
+    pm = await db.get(User, 2)
+    pm.wecom_userid = "pm01_wx"
+    net = await db.get(User, 5)
+    net.wecom_userid = None  # 未配置企微账号 → skipped
+    await db.commit()
+
+    pid, tasks = await _make_inited_project(client, "企微推送测试", pm_id=2, init_user=2)
+    # 指派给 net01（无映射 → skipped）与 pm 自己（有映射 → sent）
+    resp = await client.put(f"/api/tasks/{tasks[0]['id']}/assign", json={"assignee_id": 5}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 200
+    resp = await client.put(f"/api/tasks/{tasks[1]['id']}/assign", json={"assignee_id": 2}, headers={"X-User-Id": "2"})
+    assert resp.status_code == 200
+
+    sent_payloads = []
+    async def fake_sender(chatid, body):
+        sent_payloads.append((chatid, body))
+
+    n = await wecom_service.push_pending(db, sender=fake_sender, limit=50)
+    assert n == 2  # project_assigned（新项目待立项）+ task_assigned，均推给 pm01_wx
+    assert all(c == "pm01_wx" for c, _ in sent_payloads)
+    assert all(b["msgtype"] == "markdown" for _, b in sent_payloads)
+    assert any("待立项" in b["markdown"]["content"] for _, b in sent_payloads)
+    assert any("指派了任务" in b["markdown"]["content"] for _, b in sent_payloads)
+
+    # 再扫：pending 均已处理（sent/skipped），仅 failed 会重试
+    n2 = await wecom_service.push_pending(db, sender=fake_sender, limit=50)
+    assert n2 == 0
+
+    # 失败重试：构造 failed 且 attempts<3 的通知
+    from sqlalchemy import select
+    from app.models.notification import Notification
+    n_row = (await db.execute(select(Notification).where(Notification.push_status == "sent"))).scalars().first()
+    n_row.push_status = "failed"
+    n_row.push_attempts = 1
+    n_row.push_error = "boom"
+    await db.commit()
+    boom = 0
+    async def failing_sender(chatid, body):
+        nonlocal boom
+        boom += 1
+        raise RuntimeError("conn down")
+    n3 = await wecom_service.push_pending(db, sender=failing_sender, limit=50)
+    assert n3 == 0 and boom == 1
+    refreshed = await db.get(Notification, n_row.id)
+    assert refreshed.push_attempts == 2 and refreshed.push_error == "conn down"

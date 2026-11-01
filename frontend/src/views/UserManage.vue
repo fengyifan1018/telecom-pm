@@ -47,14 +47,14 @@ async function fetchUsers() {
 function openCreate() {
   editingId.value = null
   dialogTitle.value = '新增用户'
-  form.value = { username: '', password: '', display_name: '', role: 'operations' }
+  form.value = { username: '', password: '', display_name: '', role: 'operations', wecom_userid: '' }
   showDialog.value = true
 }
 
 function openEdit(user) {
   editingId.value = user.id
   dialogTitle.value = '编辑用户'
-  form.value = { display_name: user.display_name, role: user.role }
+  form.value = { display_name: user.display_name, role: user.role, wecom_userid: user.wecom_userid || '' }
   showDialog.value = true
 }
 
@@ -164,6 +164,9 @@ onMounted(fetchUsers)
         </el-form-item>
         <el-form-item label="显示名">
           <el-input v-model="form.display_name" placeholder="显示名称" />
+        </el-form-item>
+        <el-form-item label="企微账号">
+          <el-input v-model="form.wecom_userid" placeholder="企微通讯录账号（接收推送通知）" />
         </el-form-item>
         <el-form-item label="角色">
           <el-select v-model="form.role" style="width: 100%">

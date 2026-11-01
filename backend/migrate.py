@@ -22,6 +22,10 @@ MIGRATIONS = [
     ("projects", "init_submitted_by", "INTEGER"),
     ("projects", "init_reject_reason", "TEXT"),
     ("projects", "template_id", "INTEGER"),
+    ("users", "wecom_userid", "VARCHAR(64)"),
+    ("notifications", "push_status", "VARCHAR(10) DEFAULT 'pending'"),
+    ("notifications", "push_error", "VARCHAR(255)"),
+    ("notifications", "push_attempts", "INTEGER DEFAULT 0"),
 ]
 
 

@@ -20,3 +20,7 @@ class Notification(Base):
     related_task_id: Mapped[Optional[int]] = mapped_column(ForeignKey("tasks.id"))
     related_project_id: Mapped[Optional[int]] = mapped_column(ForeignKey("projects.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_cn)
+    # 企微推送 outbox：pending → sent / failed（重试≤3） / skipped（无映射）
+    push_status: Mapped[str] = mapped_column(String(10), default="pending")
+    push_error: Mapped[Optional[str]] = mapped_column(String(255))
+    push_attempts: Mapped[int] = mapped_column(Integer, default=0)
