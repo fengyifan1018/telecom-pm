@@ -329,7 +329,8 @@ npm run dev   # 默认 http://localhost:5173, proxy /api -> 8000
 28. **生产安全守卫** — config.ensure_secret_key：DEBUG=false 时弱/默认 SECRET_KEY 直接拒绝启动（本地开发 .env DEBUG=true 豁免）；migrate.py 改从 DATABASE_URL 解析库路径（容器内 /app/data/telecom.db）
 29. **服务器 Docker 部署完成（10.1.99.77，powerisp）** — 全流程实测：git clone → .env 生成强密钥 → compose build（基础镜像复用服务器已有 python:3.11-slim/node:20-alpine，nginx:alpine 经 1ms.run 加速器补拉；全程未动系统 Docker 配置，biz-collab 等现有应用零影响）→ create_admin 建首个管理员 → 登录/前端/反代三层验证通过 → 备份脚本演练成功。过程修复：entrypoint 先 create_all 再 migrate（空库）、PyPI 清华源 build arg、frontend ARG 置顶、BASE_IMAGE 参数化、backup.sh 宿主侧打包与权限容错。**管理员密码在服务器 ~/telecom-admin-credentials.txt（600）**；demo 业务账号建议禁用
 30. **模板管理优化（P0×3 + 复制模板）** — ①depends_on 循环依赖校验（后端 create/update DFS 染色 400 + 前端 validate 同规则，此前环模板立项会 RecursionError 500）②同产品线唯一启用模板：create/启用时自动停用同产品线其他模板（"切换生效"语义，替代 scalar_one_or_none 多结果炸立项），立项查询加固 first ③服务端结构校验（phase/name/任务标题非空、key 唯一、depends_on 引用存在、天数≥1）④复制模板：卡片"复制"按钮一键克隆 26-35 任务（名称加"副本"），新建对话框同产品线冲突警示；已部署服务器更新。新增集成测试 6 场景，36 个测试全过
-31. **遗留死表** — `task_dependencies` 已移除
+31. **模板管理 P2 三项** — ①版本历史：新表 template_versions（phases 变更快照旧版本），versions API（列表/内容），编辑器"历史版本" tab（列表/查看/一键载入，保存自然生成新版本）②JSON tab 双向编辑（解析失败不覆盖，应用后回可视化检查）③使用统计：立项记录 projects.template_id（migrate 加列），卡片显示"被 N 个项目使用"（新模板精确计数+历史项目按产品线回填）。**修复：watch 引用未声明 ref（TDZ）致模板页白屏**。37 个测试全过，已部署服务器
+32. **遗留死表** — `task_dependencies` 已移除
 
 ## 当前已注册路由汇总（65+个端点）
 
