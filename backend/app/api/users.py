@@ -49,6 +49,63 @@ async def create_user(
     return user
 
 
+@router.get("/wecom-bind-requests")
+async def list_wecom_bind_requests(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("user.manage")),
+):
+    """企微账号待绑定候选（成员给机器人发消息产生，未指认）。"""
+    from app.models.wecom_bind import WecomBindRequest
+    rows = await db.execute(
+        select(WecomBindRequest)
+        .where(WecomBindRequest.bound_user_id.is_(None))
+        .order_by(WecomBindRequest.last_at.desc())
+    )
+    return [
+        {"id": r.id, "wecom_userid": r.wecom_userid, "last_content": r.last_content, "last_at": r.last_at}
+        for r in rows.scalars().all()
+    ]
+
+
+@router.post("/{user_id}/bind-wecom")
+async def bind_wecom_userid(
+    user_id: int,
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("user.manage")),
+):
+    """管理员将待绑定候选的企微账号指认绑定到系统用户。"""
+    from app.models.wecom_bind import WecomBindRequest
+    wxid = (data.get("wecom_userid") or "").strip()
+    if not wxid:
+        raise HTTPException(status_code=400, detail="wecom_userid 不能为空")
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    # 冲突校验：企微账号未占用 / 用户未绑定
+    dup_wx = await db.execute(
+        select(WecomBindRequest).where(WecomBindRequest.wecom_userid == wxid, WecomBindRequest.bound_user_id.is_not(None))
+    )
+    if dup_wx.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="该企微账号已绑定其他用户")
+    if user.wecom_userid:
+        raise HTTPException(status_code=400, detail="该用户已绑定企微账号")
+    # 标记候选为已绑定（若存在）
+    cand = await db.execute(
+        select(WecomBindRequest).where(WecomBindRequest.wecom_userid == wxid)
+    )
+    cand_row = cand.scalar_one_or_none()
+    if cand_row is None:
+        cand_row = WecomBindRequest(wecom_userid=wxid)
+        db.add(cand_row)
+    cand_row.bound_user_id = user.id
+    user.wecom_userid = wxid
+    await log_action(db, current_user.id, current_user.display_name, "bind_wecom",
+                     "user", user.id, user.display_name, detail={"wecom_userid": wxid})
+    await db.commit()
+    return {"detail": "已绑定", "wecom_userid": wxid}
+
+
 @router.get("/{user_id}/workload")
 async def get_user_workload(
     user_id: int,

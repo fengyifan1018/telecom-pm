@@ -34,8 +34,25 @@ async def main() -> None:
 
     @client.on("message.text")
     async def _on_text(frame):
-        # 用户给机器人发消息（满足"先发过消息才能被推送"的前置），暂不做对话处理
-        logger.info("received user message (silent ack)")
+        # 成员给机器人发消息：尝试自动绑定（发系统用户名）或入候选
+        try:
+            body = frame.get("body", {}) if isinstance(frame, dict) else {}
+            sender = body.get("sender", {}).get("userid") or body.get("from", {}).get("userid") or ""
+            content = body.get("text", {}).get("content", "")
+            if not sender:
+                logger.warning("message without sender: %s", str(frame)[:200])
+                return
+            from app.database import async_session
+            from app.services.wecom_service import handle_bind_message
+            async with async_session() as db:
+                reply = await handle_bind_message(db, sender, content)
+            await client.send_message(sender, {
+                "msgtype": "markdown",
+                "markdown": {"content": reply},
+            })
+            logger.info("bind message handled for %s", sender)
+        except Exception:
+            logger.exception("handle bind message failed")
 
     await client.connect()
     logger.info("wecom push loop started")

@@ -14,6 +14,7 @@ from app.models.role_permission import RolePermission
 from app.models.audit_log import AuditLog
 from app.models.metric_snapshot import MetricSnapshot
 from app.models.template_version import TemplateVersion
+from app.models.wecom_bind import WecomBindRequest
 
 __all__ = [
     "User",
@@ -37,4 +38,5 @@ __all__ = [
     "AuditLog",
     "MetricSnapshot",
     "TemplateVersion",
+    "WecomBindRequest",
 ]

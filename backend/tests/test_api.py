@@ -1140,3 +1140,65 @@ async def test_wecom_push_outbox(client: AsyncClient, seeded_db, db, monkeypatch
     assert n3 == 0 and boom == 1
     refreshed = await db.get(Notification, n_row.id)
     assert refreshed.push_attempts == 2 and refreshed.push_error == "conn down"
+
+
+@pytest.mark.asyncio
+async def test_wecom_bind_flow(client: AsyncClient, seeded_db, db):
+    """企微绑定流：成员给机器人发系统用户名 → 自动绑定；未知 → 候选待管理员指认。"""
+    from app.services import wecom_service
+    from sqlalchemy import select
+    from app.models.user import User
+    from app.models.wecom_bind import WecomBindRequest
+
+    # 1. 发"pm01"（系统存在且未绑定）→ 自动绑定 + 确认文案
+    reply = await wecom_service.handle_bind_message(db, "wx-user-001", "pm01")
+    assert "已绑定" in reply and "pm01" in reply
+    pm = await db.get(User, 2)
+    assert pm.wecom_userid == "wx-user-001"
+    # 绑定记录落表
+    binds = (await db.execute(select(WecomBindRequest))).scalars().all()
+    assert len(binds) == 1 and binds[0].bound_user_id == 2
+
+    # 2. 重复绑定：同一企微账号再发 → 提示已绑定，不产生新绑定
+    reply = await wecom_service.handle_bind_message(db, "wx-user-001", "pm01")
+    assert "已绑定" in reply
+    assert len((await db.execute(select(WecomBindRequest))).scalars().all()) == 1
+
+    # 3. 发未知内容 → 入候选，不入绑定
+    reply = await wecom_service.handle_bind_message(db, "wx-user-002", "我是谁")
+    assert "管理员" in reply
+    cand = (await db.execute(select(WecomBindRequest).where(WecomBindRequest.bound_user_id.is_(None)))).scalars().all()
+    assert len(cand) == 1 and cand[0].wecom_userid == "wx-user-002"
+
+    # 4. 已被绑定的企微账号发别的用户名 → 提示已绑定不换绑
+    reply = await wecom_service.handle_bind_message(db, "wx-user-001", "sales01")
+    assert "已绑定" in reply
+
+    # 5. 管理员候选列表 API（user.manage）
+    resp = await client.get("/api/users/wecom-bind-requests", headers={"X-User-Id": "2"})
+    assert resp.status_code == 403  # pm 无用户管理权限
+    resp = await client.get("/api/users/wecom-bind-requests", headers={"X-User-Id": "1"})
+    assert resp.status_code == 403  # 销售同样
+    # 用 ops01? 也无。插管理员验证 200
+    from app.models.user import User as U
+    from app.seed.seed_users import hash_password
+    adm = U(username="bind_admin", hashed_password=hash_password("123456"), display_name="绑定管理员", role="admin", is_active=True)
+    db.add(adm)
+    await db.commit()
+    await db.refresh(adm)
+    resp = await client.get("/api/users/wecom-bind-requests", headers={"X-User-Id": str(adm.id)})
+    assert resp.status_code == 200
+    items = resp.json()
+    assert any(c["wecom_userid"] == "wx-user-002" for c in items)
+
+    # 6. 管理员手动绑定候选到指定用户
+    resp = await client.post(f"/api/users/6/bind-wecom", json={"wecom_userid": "wx-user-002"}, headers={"X-User-Id": str(adm.id)})
+    assert resp.status_code == 200
+    f6 = await db.get(U, 6)
+    assert f6.wecom_userid == "wx-user-002"
+
+    # 7. 冲突保护：绑定已被占用的 userid → 400；绑定已绑定的用户 → 400
+    resp = await client.post(f"/api/users/7/bind-wecom", json={"wecom_userid": "wx-user-002"}, headers={"X-User-Id": str(adm.id)})
+    assert resp.status_code == 400
+    resp = await client.post(f"/api/users/2/bind-wecom", json={"wecom_userid": "wx-user-003"}, headers={"X-User-Id": str(adm.id)})
+    assert resp.status_code == 400

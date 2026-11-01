@@ -58,6 +58,37 @@ function openEdit(user) {
   showDialog.value = true
 }
 
+// ── 企微账号待绑定候选 ──
+const bindDialog = ref(false)
+const bindRequests = ref([])
+const bindTargets = ref([])
+const bindChoice = ref({})
+const bindCount = computed(() => bindRequests.value.length)
+async function loadBindRequests() {
+  const res = await http.get('/users/wecom-bind-requests')
+  bindRequests.value = res.data
+  return res.data
+}
+async function openBindDialog() {
+  const [req, users] = await Promise.all([loadBindRequests(), http.get('/users')])
+  bindRequests.value = req.data
+  bindTargets.value = (users.data || []).filter(u => !u.wecom_userid)
+  bindChoice.value = {}
+  bindDialog.value = true
+}
+async function confirmBind(req) {
+  const target = bindChoice.value[req.id]
+  if (!target) { ElMessage.warning('请选择要绑定的系统用户'); return }
+  await http.post(`/users/${target}/bind-wecom`, { wecom_userid: req.wecom_userid })
+  ElMessage.success('已绑定')
+  bindRequests.value = bindRequests.value.filter(r => r.id !== req.id)
+  bindChoice.value = { ...bindChoice.value, [req.id]: undefined }
+  await fetchUsers()
+}
+async function ignoreRequest(req) {
+  bindRequests.value = bindRequests.value.filter(r => r.id !== req.id)
+}
+
 async function handleSubmit() {
   submitLoading.value = true
   try {
@@ -104,12 +135,18 @@ async function toggleActive(user) {
   }
 }
 
-onMounted(fetchUsers)
+onMounted(() => {
+  fetchUsers()
+  http.get('/users/wecom-bind-requests').then(r => { bindRequests.value = r.data }).catch(() => {})
+})
 </script>
 
 <template>
   <div>
     <PageHeader title="用户管理">
+      <el-button v-if="bindCount" type="warning" plain @click="openBindDialog">
+        待绑定企微 ({{ bindCount }})
+      </el-button>
       <el-button type="primary" @click="openCreate">新增用户</el-button>
     </PageHeader>
 
@@ -121,6 +158,9 @@ onMounted(fetchUsers)
       <el-table-column prop="display_name" label="显示名" width="150" />
       <el-table-column prop="role" label="角色" width="120">
         <template #default="{ row }">{{ ROLE_MAP[row.role] || row.role }}</template>
+      </el-table-column>
+      <el-table-column label="企微账号" width="120">
+        <template #default="{ row }">{{ row.wecom_userid || '—' }}</template>
       </el-table-column>
       <el-table-column prop="is_active" label="状态" width="80">
         <template #default="{ row }">
@@ -180,4 +220,30 @@ onMounted(fetchUsers)
       </template>
     </el-dialog>
   </div>
+
+    <el-dialog v-model="bindDialog" title="企微账号待绑定" width="640px">
+      <el-table v-if="bindRequests.length" :data="bindRequests" size="small">
+        <el-table-column prop="wecom_userid" label="企微账号" width="160" />
+        <el-table-column prop="last_content" label="发来的消息" min-width="140" show-overflow-tooltip />
+        <el-table-column label="绑定到" width="200">
+          <template #default="{ row }">
+            <el-select v-model="bindChoice[row.id]" size="small" placeholder="选择系统用户" filterable style="width: 100%">
+              <el-option v-for="u in bindTargets" :key="u.id" :label="`${u.display_name} (${u.username})`" :value="u.id" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column width="140">
+          <template #default="{ row }">
+            <el-button size="small" type="primary" :disabled="!bindChoice[row.id]" @click="confirmBind(row)">绑定</el-button>
+            <el-button size="small" text @click="ignoreRequest(row)">忽略</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div v-else style="color: var(--el-text-color-secondary); font-size: 13px">
+        暂无待绑定申请。成员给机器人发消息后会出现在这里。
+      </div>
+      <div style="margin-top: 10px; font-size: 12px; color: var(--el-text-color-placeholder)">
+        提示：成员给机器人发送自己的系统账号（用户名）可自动绑定，无需手动操作。
+      </div>
+    </el-dialog>
 </template>
